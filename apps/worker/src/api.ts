@@ -4,16 +4,34 @@ export type ApiRequest = {
   body?: unknown;
 };
 
+const DEFAULT_HEADERS = {
+  'content-type': 'application/json',
+  accept: 'application/json'
+};
+
 export async function callWebInternalApi({ path, method = 'POST', body }: ApiRequest) {
-  // TODO: include INTERNAL_API_SECRET header and handle non-2xx responses
   const baseUrl = process.env.WEB_INTERNAL_URL ?? 'http://localhost:3000';
+  const secret = process.env.INTERNAL_API_SECRET;
+
+  if (!secret) {
+    throw new Error('INTERNAL_API_SECRET is not configured');
+  }
+
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
-      'content-type': 'application/json'
+      ...DEFAULT_HEADERS,
+      'x-internal-secret': secret
     },
     body: body ? JSON.stringify(body) : undefined
   });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(
+      `Internal API request failed (${method} ${path}): ${response.status} ${response.statusText} ${message}`.trim()
+    );
+  }
 
   return response;
 }
