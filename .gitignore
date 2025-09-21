@@ -27,3 +27,4 @@ apps/worker/state/*
 
 # Misc
 .DS_Store
+dist
