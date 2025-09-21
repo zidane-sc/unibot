@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { unsealData } from 'iron-session/edge';
 
-import { sessionOptions, type SessionData } from '../lib/session';
+import { sessionOptions, type SessionData } from './lib/session';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

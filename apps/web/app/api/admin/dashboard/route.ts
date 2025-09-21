@@ -1,0 +1,137 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+import prisma from '../../../../lib/prisma';
+import { getSession } from '../../../../lib/session';
+import { hasActiveSession } from '../../../../lib/auth';
+import { now } from '../../../../lib/time';
+import {
+  WEEKDAY_TO_DAYJS_INDEX,
+  sortByWeekdayAndStartTime
+} from '../../../../lib/weekdays';
+import type { AdminClass, ScheduleRecord, UpcomingSchedule } from '../../../admin/types';
+
+export async function GET(_request: NextRequest) {
+  const session = await getSession();
+  const userId = session.userId;
+
+  if (!hasActiveSession(session) || !userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const classes = await prisma.class.findMany({
+    where: {
+      members: {
+        some: {
+          userId,
+          role: 'admin'
+        }
+      }
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      schedules: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          room: true,
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'asc'
+    }
+  });
+
+  const adminClasses: AdminClass[] = classes.map((item) => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    schedules: item.schedules
+      .map((schedule) => ({
+        id: schedule.id,
+        classId: item.id,
+        title: schedule.title,
+        description: schedule.description,
+        room: schedule.room,
+        dayOfWeek: schedule.dayOfWeek,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime
+      }))
+      .sort(sortByWeekdayAndStartTime)
+  }));
+
+  const totalSchedules = adminClasses.reduce((acc, current) => acc + current.schedules.length, 0);
+  const upcoming = findUpcomingSchedule(adminClasses);
+
+  return NextResponse.json({
+    classes: adminClasses,
+    stats: {
+      classCount: adminClasses.length,
+      totalSchedules
+    },
+    upcoming
+  });
+}
+
+function findUpcomingSchedule(classes: AdminClass[]): UpcomingSchedule | null {
+  const reference = now();
+  let candidate: { schedule: ScheduleRecord; className: string; start: ReturnType<typeof now> } | null = null;
+
+  for (const item of classes) {
+    for (const schedule of item.schedules) {
+      const nextOccurrence = computeNextOccurrence(schedule, reference);
+
+      if (!nextOccurrence) {
+        continue;
+      }
+
+      if (!candidate || nextOccurrence.isBefore(candidate.start)) {
+        candidate = {
+          schedule,
+          className: item.name ?? 'Kelas tanpa nama',
+          start: nextOccurrence
+        };
+      }
+    }
+  }
+
+  if (!candidate) {
+    return null;
+  }
+
+  return {
+    schedule: candidate.schedule,
+    className: candidate.className,
+    startDateIso: candidate.start.toISOString()
+  };
+}
+
+function computeNextOccurrence(schedule: ScheduleRecord, reference: ReturnType<typeof now>) {
+  const [hour, minute] = schedule.startTime.split(':').map((value) => Number.parseInt(value, 10));
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return null;
+  }
+
+  const targetDayIndex = WEEKDAY_TO_DAYJS_INDEX[schedule.dayOfWeek];
+  const dayDifference = (targetDayIndex - reference.day() + 7) % 7;
+
+  let candidate = reference
+    .set('hour', hour)
+    .set('minute', minute)
+    .set('second', 0)
+    .set('millisecond', 0)
+    .add(dayDifference, 'day');
+
+  if (dayDifference === 0 && candidate.isBefore(reference)) {
+    candidate = candidate.add(7, 'day');
+  }
+
+  return candidate;
+}
