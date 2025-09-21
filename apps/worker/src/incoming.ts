@@ -4,12 +4,13 @@ import { routeIntent } from './router';
 import type { RouteContext } from './router';
 import { extractText, jidToDisplay, stripMention } from './utils';
 import { TokenBucketRateLimiter } from './rate-limit';
-import { findGroup } from './registry';
+import { findGroup, upsertGroup } from './registry';
 
 export type IncomingContext = {
   socket: WASocket;
   message: WAMessage;
   botJid: string;
+  botLid: string;
   limiter: TokenBucketRateLimiter;
 };
 
@@ -26,8 +27,9 @@ function extractMentionedJids(message: WAMessage): string[] {
   return info?.mentionedJid ?? [];
 }
 
-export async function handleIncomingMessage({ socket, message, botJid, limiter }: IncomingContext) {
-  if (!botJid) {
+export async function handleIncomingMessage({ socket, message, botJid, botLid, limiter }: IncomingContext) {
+  console.dir(message);
+  if (!botJid && !botLid) {
     return;
   }
 
@@ -54,10 +56,7 @@ export async function handleIncomingMessage({ socket, message, botJid, limiter }
   }
 
   const mentionedJids = extractMentionedJids(message);
-  const mentionToken = botJid.split('@')[0] ?? botJid;
-  const isMentioned =
-    mentionedJids.includes(botJid) ||
-    text.toLowerCase().includes(`@${mentionToken.toLowerCase()}`);
+  const isMentioned = mentionedJids.includes(botLid)
 
   if (!isMentioned) {
     return;
@@ -74,6 +73,7 @@ export async function handleIncomingMessage({ socket, message, botJid, limiter }
 
   const sanitized = stripMention(text, botJid);
   const intent = detectIntent(sanitized);
+
   const groupEntry = findGroup(remoteJid);
 
   const context: RouteContext = {
@@ -86,6 +86,17 @@ export async function handleIncomingMessage({ socket, message, botJid, limiter }
   const reply = await routeIntent(intent, context);
 
   if (!reply) {
+    return;
+  }
+
+  if (reply.register?.classId) {
+    upsertGroup({
+      groupJid: remoteJid,
+      classId: reply.register.classId
+    });
+  }
+
+  if (!reply.text) {
     return;
   }
 

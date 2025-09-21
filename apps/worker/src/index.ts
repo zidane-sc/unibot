@@ -1,12 +1,22 @@
+import 'dotenv/config';
 import path from 'node:path';
-import makeWASocket, {
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  useMultiFileAuthState,
-  type WASocket
-} from '@whiskeysockets/baileys';
+import * as baileys from '@whiskeysockets/baileys';
+
 import { TokenBucketRateLimiter } from './rate-limit';
 import { handleIncomingMessage } from './incoming';
+
+const {
+  makeWASocket,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  useMultiFileAuthState
+} = baileys as typeof import('@whiskeysockets/baileys');
+const { makeWASocket: makeSocketFromDefault } = (baileys as any).default ?? {};
+const socketFactory = makeWASocket ?? makeSocketFromDefault;
+if (typeof socketFactory !== 'function') {
+  throw new Error('Baileys makeWASocket export is unavailable');
+}
+type WASocket = import('@whiskeysockets/baileys').WASocket;
 
 const RECONNECT_DELAY_MS = 2000;
 
@@ -18,11 +28,12 @@ export async function start() {
 
   let socket: WASocket | null = null;
   let botJid = '';
+  let botLid = '';
   let reconnecting = false;
 
   const bootSocket = () => {
     reconnecting = false;
-    socket = makeWASocket({
+    socket = socketFactory({
       version,
       auth: state,
       printQRInTerminal: true,
@@ -42,7 +53,9 @@ export async function start() {
 
       if (connection === 'open') {
         botJid = socket?.user?.id ?? '';
-        console.info(`WhatsApp connected as ${botJid}`);
+        botLid = socket?.user?.lid ?? '';
+        botLid = botLid?.replace(/:\d+@/, "@");
+        console.info(`WhatsApp connected as ${botJid} (LID: ${botLid})`);
       }
 
       if (connection === 'close') {
@@ -80,6 +93,7 @@ export async function start() {
           socket,
           message,
           botJid,
+          botLid,
           limiter
         });
       } catch (error) {

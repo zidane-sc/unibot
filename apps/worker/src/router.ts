@@ -16,6 +16,7 @@ export type RouteContext = {
 export type RoutedReply = {
   text: string;
   mentions?: string[];
+  register?: { classId: string };
 } | null;
 
 function buildFallback(intent: DetectedIntent | null, context: RouteContext): RoutedReply {
@@ -38,8 +39,13 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       return {
         text: [
           `${mention} ${bold('Unibot')} siap bantu dengan:`,
-          list(['Lihat jadwal kelas', 'Cek tugas terbaru', 'Kirim pengumuman internal'])
+          list(['Lihat jadwal kelas', 'Cek tugas terbaru', 'Lihat kelompok'])
         ].join('\n'),
+        mentions: [context.senderJid]
+      };
+    case 'register':
+      return {
+        text: `${mention} untuk menghubungkan kelas, pastikan kamu admin terdaftar lalu ketik *@unibot register*.`,
         mentions: [context.senderJid]
       };
     default:
@@ -52,6 +58,8 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
 
 export async function routeIntent(intent: DetectedIntent | null, context: RouteContext): Promise<RoutedReply> {
   try {
+    console.log('Routing intent via internal API:', intent, context);
+
     const response = await callWebInternalApi({
       path: '/api/internal/wa/reply',
       method: 'POST',
@@ -62,13 +70,14 @@ export async function routeIntent(intent: DetectedIntent | null, context: RouteC
     });
 
     const data = (await response.json().catch(() => null)) as
-      | { message?: string; mentions?: string[] }
+      | { message?: string; mentions?: string[]; register?: { classId: string } }
       | null;
 
-    if (data?.message) {
+    if (data?.message || data?.register) {
       return {
-        text: data.message,
-        mentions: data.mentions
+        text: data.message ?? '',
+        mentions: data.mentions,
+        register: data.register
       };
     }
   } catch (error) {

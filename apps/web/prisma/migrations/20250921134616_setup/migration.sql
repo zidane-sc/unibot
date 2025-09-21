@@ -3,7 +3,7 @@ CREATE TYPE "Weekday" AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FR
 
 -- CreateTable
 CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "phone" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -12,9 +12,10 @@ CREATE TABLE "User" (
 
 -- CreateTable
 CREATE TABLE "Class" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "name" TEXT,
     "description" TEXT,
+    "groupJid" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Class_pkey" PRIMARY KEY ("id")
@@ -22,9 +23,9 @@ CREATE TABLE "Class" (
 
 -- CreateTable
 CREATE TABLE "ClassMember" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "classId" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "classId" UUID NOT NULL,
     "role" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -33,8 +34,8 @@ CREATE TABLE "ClassMember" (
 
 -- CreateTable
 CREATE TABLE "Schedule" (
-    "id" TEXT NOT NULL,
-    "classId" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "classId" UUID NOT NULL,
     "title" TEXT,
     "description" TEXT,
     "room" TEXT,
@@ -48,8 +49,8 @@ CREATE TABLE "Schedule" (
 
 -- CreateTable
 CREATE TABLE "Assignment" (
-    "id" TEXT NOT NULL,
-    "classId" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "classId" UUID NOT NULL,
     "title" TEXT,
     "description" TEXT,
     "dueAt" TIMESTAMP(3),
@@ -60,8 +61,8 @@ CREATE TABLE "Assignment" (
 
 -- CreateTable
 CREATE TABLE "OtpCode" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
     "code" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -29,6 +29,7 @@ model Class {
   id          String        @id @default(uuid()) @db.Uuid
   name        String?
   description String?
+  groupJid    String?
   members     ClassMember[]
   schedules   Schedule[]
   assignments Assignment[]
