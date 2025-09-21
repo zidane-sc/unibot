@@ -7,6 +7,7 @@ import { getSession } from '../../lib/session';
 import { WEEKDAY_LABELS } from '../../lib/weekdays';
 import type { AdminClass, AdminDashboardResponse } from './types';
 import ScheduleManager from './_components/schedule-manager';
+import AssignmentManager from './_components/assignment-manager';
 
 export default async function AdminDashboardPage() {
   const session = await getSession();
@@ -20,6 +21,7 @@ export default async function AdminDashboardPage() {
 
   const classCountLabel = data.stats.classCount.toLocaleString('id-ID');
   const totalSchedulesLabel = data.stats.totalSchedules.toLocaleString('id-ID');
+  const totalAssignmentsLabel = data.stats.totalAssignments.toLocaleString('id-ID');
   const upcoming = data.upcoming;
 
   const upcomingTitle = upcoming ? upcoming.schedule.title ?? 'Tanpa judul' : 'Belum ada jadwal';
@@ -39,8 +41,8 @@ export default async function AdminDashboardPage() {
             <div className="max-w-2xl space-y-4">
               <h1 className="text-3xl font-semibold text-white md:text-4xl">Hai, Ketua Kelas 👋</h1>
               <p className="text-sm text-slate-300">
-                Kelola jadwal mingguan kelas kamu, siapkan pengingat otomatis, dan pantau integrasi dengan grup WhatsApp.
-                Semua aksi akan segera terhubung langsung dengan Unibot di percakapan kampus.
+                Kelola jadwal mingguan dan tugas kelas kamu, siapkan pengingat otomatis, dan pantau integrasi dengan grup
+                WhatsApp. Semua aksi akan segera terhubung langsung dengan Unibot di percakapan kampus.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
@@ -60,7 +62,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Kelas Aktif"
             value={classCountLabel}
@@ -70,6 +72,11 @@ export default async function AdminDashboardPage() {
             label="Slot Jadwal"
             value={totalSchedulesLabel}
             description="Total jadwal mingguan yang akan diingatkan oleh Unibot."
+          />
+          <StatCard
+            label="Tugas Aktif"
+            value={totalAssignmentsLabel}
+            description="Jumlah tugas dan tenggat yang sedang dipantau."
           />
           <StatCard label="Jadwal Terdekat" value={upcomingTitle} description={upcomingMeta} variant="accent" />
         </section>
@@ -84,6 +91,17 @@ export default async function AdminDashboardPage() {
         </div>
 
         <ScheduleManager classes={adminClasses} />
+      </section>
+
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-white">Kelola Tugas Kelas</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Catat tenggat tugas penting dan siapkan broadcast otomatis agar seluruh anggota kelas tidak melewatkan deadline.
+          </p>
+        </div>
+
+        <AssignmentManager classes={adminClasses} />
       </section>
     </main>
   );
