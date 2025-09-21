@@ -1,9 +1,25 @@
+import { createHash, timingSafeEqual } from 'crypto';
+
 export function hashOtp(code: string): string {
-  // TODO: replace with secure hashing + expiration
-  return code;
+  return createHash('sha256').update(code).digest('hex');
 }
 
 export function verifyOtp(code: string, hashed: string): boolean {
-  // TODO: use timing-safe comparison
-  return code === hashed;
+  if (!code || !hashed) {
+    return false;
+  }
+
+  const codeHash = hashOtp(code);
+  const left = Buffer.from(codeHash, 'utf8');
+  const right = Buffer.from(hashed, 'utf8');
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  try {
+    return timingSafeEqual(left, right);
+  } catch {
+    return false;
+  }
 }

@@ -26,6 +26,16 @@ Unibot centralizes the campus assistant experience. The goal is to provide a sin
 - WhatsApp worker will reply in groups only when mentioned; direct messages are reserved for OTP delivery (implemented later)
 - Jobs, reminders, and business logic are intentionally left as TODO markers
 
+## Ketua Kelas Login Flow
+Ketua kelas authenticate via a short OTP exchange that keeps credentials out of band:
+
+1. Submit a WhatsApp phone number on `/admin/login`.
+2. The backend verifies the user is registered as a class admin and issues a six digit OTP.
+3. Enter the received code to establish an iron-session cookie and unlock the dashboard.
+
+The OTP helpers live in `apps/web/lib/otp.ts`, while request and verification handlers can be
+found under `apps/web/app/api/auth/`.
+
 ## Contributing
 1. Fork the repo and create a feature branch
 2. Keep pull requests focused and include context in descriptions

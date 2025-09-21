@@ -15,7 +15,7 @@ export async function sendOtpDirectMessage(sock: WASocket, jidOrPhone: string, c
     'Kode OTP Unibot kamu:',
     `*${code}*`,
     '',
-    'Kode ini berlaku selama 5 menit. Jangan bagikan kepada siapa pun.'
+    'Kode ini berlaku selama 3 menit. Jangan bagikan kepada siapa pun.'
   ];
 
   await sock.sendMessage(targetJid, {

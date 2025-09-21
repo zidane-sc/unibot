@@ -1,4 +1,4 @@
-import type { UnibotSession } from './session';
+import type { SessionData } from './session';
 
 export function normalizePhoneNumber(input: string): string {
   const digits = input.replace(/[^0-9]/g, '');
@@ -23,11 +23,20 @@ export function normalizePhoneNumber(input: string): string {
 }
 
 export function phoneFromJid(jid: string): string {
-  const identifier = jid.split('@')[0] ?? jid;
+  if (!jid) {
+    return '';
+  }
+
+  const [rawIdentifier] = jid.split('@');
+  if (!rawIdentifier) {
+    return '';
+  }
+
+  const identifier = rawIdentifier.split(':')[0] ?? rawIdentifier;
   return normalizePhoneNumber(identifier);
 }
 
-export function hasActiveSession(session: UnibotSession | undefined): boolean {
+export function hasActiveSession(session: SessionData | undefined): boolean {
   // TODO: enforce role-based guard rules
   return Boolean(session?.userId);
 }
