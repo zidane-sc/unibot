@@ -1,0 +1,29 @@
+# Node
+node_modules
+pnpm-lock.yaml
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next
+out
+
+# Prisma
+prisma/migrations
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Baileys state
+apps/worker/state/*
+!apps/worker/state/.gitkeep
+
+# Misc
+.DS_Store
