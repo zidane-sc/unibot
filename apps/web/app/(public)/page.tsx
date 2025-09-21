@@ -66,7 +66,7 @@ export default async function PublicLandingPage() {
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-24 px-6 py-16 md:px-12">
-        <section className="pt-8" id="hero">
+        <section className="pt-8 mt-24" id="hero">
           <HeroHighlight>
             <div className="relative grid gap-12 overflow-hidden rounded-[2.4rem] px-10 py-16 sm:px-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div className="flex flex-col gap-8">
