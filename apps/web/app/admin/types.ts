@@ -11,16 +11,26 @@ export type ScheduleRecord = {
   endTime: string;
 };
 
+export type AssignmentRecord = {
+  id: string;
+  classId: string;
+  title: string | null;
+  description: string | null;
+  dueAt: string | null;
+};
+
 export type AdminClass = {
   id: string;
   name: string | null;
   description: string | null;
   schedules: ScheduleRecord[];
+  assignments: AssignmentRecord[];
 };
 
 export type DashboardStats = {
   classCount: number;
   totalSchedules: number;
+  totalAssignments: number;
 };
 
 export type UpcomingSchedule = {

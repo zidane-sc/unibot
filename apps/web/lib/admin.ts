@@ -48,3 +48,32 @@ export async function loadScheduleForAdmin(userId: string, scheduleId: string) {
     schedule: allowed ? schedule : null
   } as const;
 }
+
+export async function loadAssignmentForAdmin(userId: string, assignmentId: string) {
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: {
+      id: true,
+      classId: true,
+      title: true,
+      description: true,
+      dueAt: true
+    }
+  });
+
+  if (!assignment) {
+    return {
+      exists: false,
+      allowed: false,
+      assignment: null
+    } as const;
+  }
+
+  const allowed = await isClassAdmin(userId, assignment.classId);
+
+  return {
+    exists: true,
+    allowed,
+    assignment: allowed ? assignment : null
+  } as const;
+}

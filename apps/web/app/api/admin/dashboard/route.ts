@@ -8,7 +8,12 @@ import {
   WEEKDAY_TO_DAYJS_INDEX,
   sortByWeekdayAndStartTime
 } from '../../../../lib/weekdays';
-import type { AdminClass, ScheduleRecord, UpcomingSchedule } from '../../../admin/types';
+import type {
+  AdminClass,
+  AssignmentRecord,
+  ScheduleRecord,
+  UpcomingSchedule
+} from '../../../admin/types';
 
 export async function GET(_request: NextRequest) {
   const session = await getSession();
@@ -41,6 +46,14 @@ export async function GET(_request: NextRequest) {
           startTime: true,
           endTime: true
         }
+      },
+      assignments: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          dueAt: true
+        }
       }
     },
     orderBy: {
@@ -63,20 +76,56 @@ export async function GET(_request: NextRequest) {
         startTime: schedule.startTime,
         endTime: schedule.endTime
       }))
-      .sort(sortByWeekdayAndStartTime)
+      .sort(sortByWeekdayAndStartTime),
+    assignments: item.assignments
+      .map((assignment) => ({
+        id: assignment.id,
+        classId: item.id,
+        title: assignment.title,
+        description: assignment.description,
+        dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null
+      }))
+      .sort(compareAssignmentsByDueDate)
   }));
 
   const totalSchedules = adminClasses.reduce((acc, current) => acc + current.schedules.length, 0);
+  const totalAssignments = adminClasses.reduce((acc, current) => acc + current.assignments.length, 0);
   const upcoming = findUpcomingSchedule(adminClasses);
 
   return NextResponse.json({
     classes: adminClasses,
     stats: {
       classCount: adminClasses.length,
-      totalSchedules
+      totalSchedules,
+      totalAssignments
     },
     upcoming
   });
+}
+
+function compareAssignmentsByDueDate(a: AssignmentRecord, b: AssignmentRecord) {
+  if (a.dueAt && b.dueAt) {
+    return a.dueAt.localeCompare(b.dueAt);
+  }
+
+  if (a.dueAt) {
+    return -1;
+  }
+
+  if (b.dueAt) {
+    return 1;
+  }
+
+  const titleA = a.title ?? '';
+  const titleB = b.title ?? '';
+
+  const comparison = titleA.localeCompare(titleB, 'id');
+
+  if (comparison !== 0) {
+    return comparison;
+  }
+
+  return a.id.localeCompare(b.id);
 }
 
 function findUpcomingSchedule(classes: AdminClass[]): UpcomingSchedule | null {
