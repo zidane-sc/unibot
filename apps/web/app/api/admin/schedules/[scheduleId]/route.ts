@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import prisma from '../../../../../../lib/prisma';
-import { getSession } from '../../../../../../lib/session';
-import { hasActiveSession } from '../../../../../../lib/auth';
-import { loadScheduleForAdmin } from '../../../../../../lib/admin';
-import { scheduleInputSchema } from '../../../../../../lib/validation/schedule';
+import prisma from '../../../../../lib/prisma';
+import { getSession } from '../../../../../lib/session';
+import { hasActiveSession } from '../../../../../lib/auth';
+import { loadScheduleForAdmin } from '../../../../../lib/admin';
+import { scheduleInputSchema } from '../../../../../lib/validation/schedule';
 
 export async function PATCH(
   request: NextRequest,

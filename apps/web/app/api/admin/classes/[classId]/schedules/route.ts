@@ -5,7 +5,7 @@ import { getSession } from '../../../../../../lib/session';
 import { hasActiveSession } from '../../../../../../lib/auth';
 import { isClassAdmin } from '../../../../../../lib/admin';
 import { scheduleInputSchema } from '../../../../../../lib/validation/schedule';
-import { sortByWeekdayAndStartTime } from '../../../../../../lib/weekdays';
+import { sortByWeekdayAndStartTime, type Weekday } from '../../../../../../lib/weekdays';
 
 export async function GET(
   _request: NextRequest,
@@ -116,7 +116,7 @@ function serializeSchedule(schedule: {
   title: string | null;
   description: string | null;
   room: string | null;
-  dayOfWeek: string;
+  dayOfWeek: Weekday;
   startTime: string;
   endTime: string;
 }) {
