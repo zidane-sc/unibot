@@ -71,7 +71,7 @@ export async function handleIncomingMessage({ socket, message, botJid, botLid, l
     return;
   }
 
-  const sanitized = stripMention(text, botJid);
+  const sanitized = stripMention(text, botLid);
   const intent = detectIntent(sanitized);
 
   const groupEntry = findGroup(remoteJid);
