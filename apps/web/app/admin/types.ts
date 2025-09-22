@@ -26,12 +26,35 @@ export type AssignmentRecord = {
   } | null;
 };
 
+export type GroupMemberRecord = {
+  id: string;
+  groupId: string;
+  name: string;
+  phone: string | null;
+};
+
+export type GroupRecord = {
+  id: string;
+  name: string;
+  classId: string;
+  scheduleId: string | null;
+  schedule: {
+    id: string;
+    title: string | null;
+    dayOfWeek: Weekday;
+    startTime: string;
+    endTime: string;
+  } | null;
+  members: GroupMemberRecord[];
+};
+
 export type AdminClass = {
   id: string;
   name: string | null;
   description: string | null;
   schedules: ScheduleRecord[];
   assignments: AssignmentRecord[];
+  groups: GroupRecord[];
 };
 
 export type DashboardStats = {

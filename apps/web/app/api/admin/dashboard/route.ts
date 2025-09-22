@@ -12,6 +12,7 @@ import type { Weekday } from '../../../../lib/weekdays';
 import type {
   AdminClass,
   AssignmentRecord,
+  GroupRecord,
   ScheduleRecord,
   UpcomingSchedule
 } from '../../../admin/types';
@@ -38,6 +39,20 @@ export async function GET(_request: NextRequest) {
           dayOfWeek: true;
           startTime: true;
           endTime: true;
+          groups: {
+            select: {
+              id: true;
+              name: true;
+              scheduleId: true;
+              members: {
+                select: {
+                  id: true;
+                  name: true;
+                  phone: true;
+                };
+              };
+            };
+          };
         };
       };
       assignments: {
@@ -83,7 +98,21 @@ export async function GET(_request: NextRequest) {
           room: true,
           dayOfWeek: true,
           startTime: true,
-          endTime: true
+          endTime: true,
+          groups: {
+            select: {
+              id: true,
+              name: true,
+              scheduleId: true,
+              members: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true
+                }
+              }
+            }
+          }
         }
       },
       assignments: {
@@ -109,13 +138,9 @@ export async function GET(_request: NextRequest) {
       createdAt: 'asc'
     }
   });
-
-  const adminClasses: AdminClass[] = classes.map((item) => ({
-    id: item.id,
-    name: item.name,
-    description: item.description,
-    schedules: item.schedules
-      .map((schedule) => ({
+  const adminClasses: AdminClass[] = classes.map((item) => {
+    const scheduleRecords = item.schedules
+      .map(({ groups, ...schedule }) => ({
         id: schedule.id,
         classId: item.id,
         title: schedule.title,
@@ -125,26 +150,60 @@ export async function GET(_request: NextRequest) {
         startTime: schedule.startTime,
         endTime: schedule.endTime
       }))
-      .sort(sortByWeekdayAndStartTime),
-    assignments: item.assignments
-      .map((assignment) => ({
-        id: assignment.id,
+      .sort(sortByWeekdayAndStartTime);
+
+    const groupRecords: GroupRecord[] = item.schedules.flatMap((schedule) =>
+      schedule.groups.map((group) => ({
+        id: group.id,
+        name: group.name,
         classId: item.id,
-        title: assignment.title,
-        description: assignment.description,
-        dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
-        schedule: assignment.schedule
+        scheduleId: group.scheduleId,
+        schedule: group.scheduleId
           ? {
-              id: assignment.schedule.id,
-              title: assignment.schedule.title,
-              dayOfWeek: assignment.schedule.dayOfWeek as Weekday,
-              startTime: assignment.schedule.startTime,
-              endTime: assignment.schedule.endTime
+              id: schedule.id,
+              title: schedule.title,
+              dayOfWeek: schedule.dayOfWeek as Weekday,
+              startTime: schedule.startTime,
+              endTime: schedule.endTime
             }
-          : null
+          : null,
+        members: group.members
+          .map((member) => ({
+            id: member.id,
+            groupId: group.id,
+            name: member.name,
+            phone: member.phone
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'id'))
       }))
-      .sort(compareAssignmentsByDueDate)
-  }));
+    );
+
+    return {
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      schedules: scheduleRecords,
+      assignments: item.assignments
+        .map((assignment) => ({
+          id: assignment.id,
+          classId: item.id,
+          title: assignment.title,
+          description: assignment.description,
+          dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
+          schedule: assignment.schedule
+            ? {
+                id: assignment.schedule.id,
+                title: assignment.schedule.title,
+                dayOfWeek: assignment.schedule.dayOfWeek as Weekday,
+                startTime: assignment.schedule.startTime,
+                endTime: assignment.schedule.endTime
+              }
+            : null
+        }))
+        .sort(compareAssignmentsByDueDate),
+      groups: sortGroups(groupRecords)
+    } satisfies AdminClass;
+  });
 
   const totalSchedules = adminClasses.reduce((acc, current) => acc + current.schedules.length, 0);
   const totalAssignments = adminClasses.reduce((acc, current) => acc + current.assignments.length, 0);
@@ -158,6 +217,34 @@ export async function GET(_request: NextRequest) {
       totalAssignments
     },
     upcoming
+  });
+}
+
+function sortGroups(groups: GroupRecord[]): GroupRecord[] {
+  return [...groups].sort((a, b) => {
+    const scheduleA = a.schedule;
+    const scheduleB = b.schedule;
+
+    if (scheduleA && scheduleB) {
+      const dayComparison =
+        WEEKDAY_TO_DAYJS_INDEX[scheduleA.dayOfWeek] - WEEKDAY_TO_DAYJS_INDEX[scheduleB.dayOfWeek];
+
+      if (dayComparison !== 0) {
+        return dayComparison;
+      }
+
+      const startComparison = scheduleA.startTime.localeCompare(scheduleB.startTime);
+
+      if (startComparison !== 0) {
+        return startComparison;
+      }
+    } else if (scheduleA) {
+      return -1;
+    } else if (scheduleB) {
+      return 1;
+    }
+
+    return a.name.localeCompare(b.name, 'id');
   });
 }
 

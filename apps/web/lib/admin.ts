@@ -87,3 +87,108 @@ export async function loadAssignmentForAdmin(userId: string, assignmentId: strin
     assignment: allowed ? assignment : null
   } as const;
 }
+
+export async function loadGroupForAdmin(userId: string, groupId: string) {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: {
+      id: true,
+      name: true,
+      scheduleId: true,
+      schedule: {
+        select: {
+          id: true,
+          classId: true,
+          title: true,
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true
+        }
+      }
+    }
+  });
+
+  if (!group) {
+    return {
+      exists: false,
+      allowed: false,
+      classId: null,
+      group: null
+    } as const;
+  }
+
+  const classId = group.schedule?.classId ?? null;
+
+  if (!classId) {
+    return {
+      exists: true,
+      allowed: false,
+      classId: null,
+      group: null
+    } as const;
+  }
+
+  const allowed = await isClassAdmin(userId, classId);
+
+  return {
+    exists: true,
+    allowed,
+    classId,
+    group: allowed ? group : null
+  } as const;
+}
+
+export async function loadGroupMemberForAdmin(userId: string, memberId: string) {
+  const member = await prisma.groupMember.findUnique({
+    where: { id: memberId },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      groupId: true,
+      group: {
+        select: {
+          id: true,
+          scheduleId: true,
+          schedule: {
+            select: {
+              classId: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!member) {
+    return {
+      exists: false,
+      allowed: false,
+      classId: null,
+      groupId: null,
+      member: null
+    } as const;
+  }
+
+  const classId = member.group?.schedule?.classId ?? null;
+
+  if (!classId) {
+    return {
+      exists: true,
+      allowed: false,
+      classId: null,
+      groupId: member.groupId,
+      member: null
+    } as const;
+  }
+
+  const allowed = await isClassAdmin(userId, classId);
+
+  return {
+    exists: true,
+    allowed,
+    classId,
+    groupId: member.groupId,
+    member: allowed ? member : null
+  } as const;
+}

@@ -8,6 +8,7 @@ import { WEEKDAY_LABELS } from '../../lib/weekdays';
 import type { AdminClass, AdminDashboardResponse } from './types';
 import ScheduleManager from './_components/schedule-manager';
 import AssignmentManager from './_components/assignment-manager';
+import GroupManager from './_components/group-manager';
 
 export default async function AdminDashboardPage() {
   const session = await getSession();
@@ -102,6 +103,17 @@ export default async function AdminDashboardPage() {
         </div>
 
         <AssignmentManager classes={adminClasses} />
+      </section>
+
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-white">Kelola Kelompok & Anggota</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Hubungkan setiap jadwal dengan grup WhatsApp dan atur daftar anggota agar pengingat langsung mengarah ke orang yang tepat.
+          </p>
+        </div>
+
+        <GroupManager classes={adminClasses} />
       </section>
     </main>
   );
