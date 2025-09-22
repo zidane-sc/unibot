@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import * as baileys from '@whiskeysockets/baileys';
+import qrcode from 'qrcode-terminal';
 
 import { TokenBucketRateLimiter } from './rate-limit';
 import { handleIncomingMessage } from './incoming';
@@ -53,6 +54,7 @@ export async function start() {
 
       if (qr) {
         console.info('Scan QR code di terminal untuk menghubungkan WhatsApp.');
+        qrcode.generate(qr, { small: true });
       }
 
       if (connection === 'open') {
