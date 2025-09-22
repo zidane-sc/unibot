@@ -6,6 +6,7 @@ import { hasActiveSession } from '../../../../../lib/auth';
 import { loadAssignmentForAdmin } from '../../../../../lib/admin';
 import { assignmentInputSchema } from '../../../../../lib/validation/assignment';
 import type { AssignmentRecord } from '../../../../admin/types';
+import type { Weekday } from '../../../../../lib/weekdays';
 
 export async function PATCH(
   request: NextRequest,
@@ -48,6 +49,18 @@ export async function PATCH(
     return NextResponse.json({ error: issue?.message ?? 'Permintaan tidak valid' }, { status: 400 });
   }
 
+  const scheduleRecord = await prisma.schedule.findFirst({
+    where: {
+      id: parsed.data.scheduleId,
+      classId: existingAssignment.classId
+    },
+    select: { id: true }
+  });
+
+  if (!scheduleRecord) {
+    return NextResponse.json({ error: 'Jadwal mata kuliah tidak ditemukan' }, { status: 400 });
+  }
+
   const description = parsed.data.description?.trim();
   const dueAtInput = parsed.data.dueAt;
   const dueAt = typeof dueAtInput === 'string' ? new Date(dueAtInput) : null;
@@ -61,14 +74,25 @@ export async function PATCH(
     data: {
       title: parsed.data.title,
       description: description && description.length > 0 ? description : null,
-      dueAt
+      dueAt,
+      scheduleId: parsed.data.scheduleId
     },
     select: {
       id: true,
       classId: true,
       title: true,
       description: true,
-      dueAt: true
+      dueAt: true,
+      scheduleId: true,
+      schedule: {
+        select: {
+          id: true,
+          title: true,
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true
+        }
+      }
     }
   });
 
@@ -112,12 +136,28 @@ function serializeAssignment(assignment: {
   title: string | null;
   description: string | null;
   dueAt: Date | null;
+  schedule: {
+    id: string;
+    title: string | null;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+  } | null;
 }): AssignmentRecord {
   return {
     id: assignment.id,
     classId: assignment.classId,
     title: assignment.title,
     description: assignment.description,
-    dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null
+    dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
+    schedule: assignment.schedule
+      ? {
+          id: assignment.schedule.id,
+          title: assignment.schedule.title,
+          dayOfWeek: assignment.schedule.dayOfWeek as Weekday,
+          startTime: assignment.schedule.startTime,
+          endTime: assignment.schedule.endTime
+        }
+      : null
   };
 }

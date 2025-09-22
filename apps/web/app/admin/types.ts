@@ -17,6 +17,13 @@ export type AssignmentRecord = {
   title: string | null;
   description: string | null;
   dueAt: string | null;
+  schedule: {
+    id: string;
+    title: string | null;
+    dayOfWeek: Weekday;
+    startTime: string;
+    endTime: string;
+  } | null;
 };
 
 export type AdminClass = {

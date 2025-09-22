@@ -57,12 +57,16 @@ model Schedule {
   startTime String
   endTime   String
   createdAt DateTime @default(now())
+  assignments Assignment[]
+  groups      Group[]
 }
 
 model Assignment {
   id          String   @id @default(uuid()) @db.Uuid
   class       Class    @relation(fields: [classId], references: [id])
   classId     String    @db.Uuid
+  schedule    Schedule? @relation(fields: [scheduleId], references: [id])
+  scheduleId  String?   @db.Uuid
   title       String?
   description String?
   dueAt       DateTime?
@@ -76,4 +80,22 @@ model OtpCode {
   code      String
   expiresAt DateTime?
   createdAt DateTime @default(now())
+}
+
+model Group {
+  id        String            @id @default(uuid()) @db.Uuid
+  name      String
+  schedule  Schedule?         @relation(fields: [scheduleId], references: [id])
+  scheduleId String?          @db.Uuid
+  members   GroupMember[]
+  createdAt DateTime          @default(now())
+}
+
+model GroupMember {
+  id         String    @id @default(uuid()) @db.Uuid
+  group     Group     @relation(fields: [groupId], references: [id])
+  groupId   String    @db.Uuid
+  name       String
+  phone      String?
+  createdAt  DateTime  @default(now())
 }

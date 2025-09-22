@@ -8,6 +8,7 @@ import {
   WEEKDAY_TO_DAYJS_INDEX,
   sortByWeekdayAndStartTime
 } from '../../../../lib/weekdays';
+import type { Weekday } from '../../../../lib/weekdays';
 import type {
   AdminClass,
   AssignmentRecord,
@@ -52,7 +53,17 @@ export async function GET(_request: NextRequest) {
           id: true,
           title: true,
           description: true,
-          dueAt: true
+          dueAt: true,
+          scheduleId: true,
+          schedule: {
+            select: {
+              id: true,
+              title: true,
+              dayOfWeek: true,
+              startTime: true,
+              endTime: true
+            }
+          }
         }
       }
     },
@@ -83,7 +94,16 @@ export async function GET(_request: NextRequest) {
         classId: item.id,
         title: assignment.title,
         description: assignment.description,
-        dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null
+        dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
+        schedule: assignment.schedule
+          ? {
+              id: assignment.schedule.id,
+              title: assignment.schedule.title,
+              dayOfWeek: assignment.schedule.dayOfWeek as Weekday,
+              startTime: assignment.schedule.startTime,
+              endTime: assignment.schedule.endTime
+            }
+          : null
       }))
       .sort(compareAssignmentsByDueDate)
   }));

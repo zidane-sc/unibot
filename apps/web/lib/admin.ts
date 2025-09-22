@@ -57,7 +57,17 @@ export async function loadAssignmentForAdmin(userId: string, assignmentId: strin
       classId: true,
       title: true,
       description: true,
-      dueAt: true
+      dueAt: true,
+      scheduleId: true,
+      schedule: {
+        select: {
+          id: true,
+          title: true,
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true
+        }
+      }
     }
   });
 

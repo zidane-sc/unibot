@@ -3,11 +3,13 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import type { AdminClass, AssignmentRecord } from '../types';
+import { WEEKDAY_LABELS } from '../../../lib/weekdays';
 
 type FormState = {
   title: string;
   description: string;
   dueAt: string;
+  scheduleId: string;
 };
 
 type StatusState = { type: 'success' | 'error'; message: string } | null;
@@ -23,6 +25,7 @@ function createEmptyForm(overrides?: Partial<FormState>): FormState {
     title: '',
     description: '',
     dueAt: '',
+    scheduleId: '',
     ...overrides
   };
 }
@@ -30,7 +33,9 @@ function createEmptyForm(overrides?: Partial<FormState>): FormState {
 export default function AssignmentManager({ classes }: { classes: AdminClass[] }) {
   const [classState, setClassState] = useState<AdminClass[]>(classes);
   const [selectedClassId, setSelectedClassId] = useState(() => classes[0]?.id ?? '');
-  const [form, setForm] = useState<FormState>(() => createEmptyForm());
+  const [form, setForm] = useState<FormState>(() =>
+    createEmptyForm({ scheduleId: classes[0]?.schedules[0]?.id ?? '' })
+  );
   const [mode, setMode] = useState<'create' | 'edit'>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -46,10 +51,13 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
   const canManage = Boolean(selectedClass);
 
   const handleSelectClass = (event: ChangeEvent<HTMLSelectElement>) => {
-    setSelectedClassId(event.target.value);
+    const nextClassId = event.target.value;
+    setSelectedClassId(nextClassId);
+    const nextClass = classState.find((item) => item.id === nextClassId);
+    const nextScheduleId = nextClass?.schedules[0]?.id ?? '';
     setMode('create');
     setEditingId(null);
-    setForm(createEmptyForm());
+    setForm(createEmptyForm({ scheduleId: nextScheduleId }));
     setStatus(null);
   };
 
@@ -59,7 +67,8 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
     setForm({
       title: assignment.title ?? '',
       description: assignment.description ?? '',
-      dueAt: toInputDateTime(assignment.dueAt)
+      dueAt: toInputDateTime(assignment.dueAt),
+      scheduleId: assignment.schedule?.id ?? selectedClass?.schedules[0]?.id ?? ''
     });
     setStatus(null);
   };
@@ -67,7 +76,7 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
   const handleCancelEdit = () => {
     setMode('create');
     setEditingId(null);
-    setForm(createEmptyForm());
+    setForm(createEmptyForm({ scheduleId: selectedClass?.schedules[0]?.id ?? '' }));
     setStatus(null);
   };
 
@@ -99,9 +108,17 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
       title: string;
       description?: string;
       dueAt?: string | null;
+      scheduleId: string;
     } = {
-      title: trimmedTitle
+      title: trimmedTitle,
+      scheduleId: form.scheduleId
     };
+
+    if (!payload.scheduleId) {
+      setStatus({ type: 'error', message: 'Pilih jadwal mata kuliah terlebih dahulu.' });
+      setSubmitting(false);
+      return;
+    }
 
     const descriptionValue = form.description.trim();
 
@@ -189,7 +206,12 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
       });
 
       if (mode === 'create') {
-        setForm(createEmptyForm());
+        setForm(
+          createEmptyForm({
+            scheduleId: selectedClass?.schedules[0]?.id ?? '',
+            dueAt: form.dueAt
+          })
+        );
       } else {
         handleCancelEdit();
       }
@@ -322,6 +344,13 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
                           <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 font-medium text-emerald-200">
                             {formatDueDate(assignment.dueAt)}
                           </span>
+                          {assignment.schedule && (
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                              {WEEKDAY_LABELS[assignment.schedule.dayOfWeek].short}{' '}
+                              {formatTimeRange(assignment.schedule.startTime, assignment.schedule.endTime)} ·{' '}
+                              {assignment.schedule.title ?? 'Tanpa judul'}
+                            </span>
+                          )}
                         </div>
                         {assignment.description && (
                           <p className="text-sm text-slate-300">{assignment.description}</p>
@@ -394,6 +423,35 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
               </div>
 
               <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80" htmlFor="assignment-schedule">
+                  Jadwal Mata Kuliah
+                </label>
+                <select
+                  id="assignment-schedule"
+                  required
+                  disabled={!canManage || submitting || (selectedClass?.schedules.length ?? 0) === 0}
+                  value={form.scheduleId}
+                  onChange={(event) => setForm((previous) => ({ ...previous, scheduleId: event.target.value }))}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="" disabled>
+                    {selectedClass?.schedules.length ? 'Pilih jadwal' : 'Tidak ada jadwal tersedia'}
+                  </option>
+                  {selectedClass?.schedules.map((schedule) => (
+                    <option key={schedule.id} value={schedule.id}>
+                      {schedule.title ?? 'Tanpa judul'} · {WEEKDAY_LABELS[schedule.dayOfWeek].short}{' '}
+                      {formatTimeRange(schedule.startTime, schedule.endTime)}
+                    </option>
+                  ))}
+                </select>
+                {selectedClass?.schedules.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-xs text-amber-200">
+                    Tambahkan jadwal terlebih dahulu sebelum membuat tugas.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80" htmlFor="assignment-due">
                   Tenggat (opsional)
                 </label>
@@ -431,7 +489,9 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
 
             <button
               type="submit"
-              disabled={!canManage || submitting}
+              disabled={
+                !canManage || submitting || (selectedClass?.schedules.length ?? 0) === 0 || !form.scheduleId
+              }
               className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-[2px] hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting
@@ -497,6 +557,10 @@ function formatDueDate(value: string | null) {
   }
 
   return DATE_TIME_FORMATTER.format(date);
+}
+
+function formatTimeRange(start: string, end: string) {
+  return `${start.slice(0, 5)} - ${end.slice(0, 5)}`;
 }
 
 function sortAssignments(assignments: AssignmentRecord[]): AssignmentRecord[] {
