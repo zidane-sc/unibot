@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
+import type { Prisma } from '@prisma/client';
 import prisma from '../../../../lib/prisma';
 import { getSession } from '../../../../lib/session';
 import { hasActiveSession } from '../../../../lib/auth';
@@ -24,7 +24,45 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const classes = await prisma.class.findMany({
+  type ClassWithRelations = Prisma.ClassGetPayload<{
+    select: {
+      id: true;
+      name: true;
+      description: true;
+      schedules: {
+        select: {
+          id: true;
+          title: true;
+          description: true;
+          room: true;
+          dayOfWeek: true;
+          startTime: true;
+          endTime: true;
+        };
+      };
+      assignments: {
+        select: {
+          id: true;
+          title: true;
+          description: true;
+          dueAt: true;
+          scheduleId: true;
+          schedule: {
+            select: {
+              id: true;
+              title: true;
+              dayOfWeek: true;
+              startTime: true;
+              endTime: true;
+            };
+          };
+        };
+      };
+    };
+  }>;
+
+
+  const classes: ClassWithRelations[] = await prisma.class.findMany({
     where: {
       members: {
         some: {
