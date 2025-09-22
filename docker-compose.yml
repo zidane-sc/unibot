@@ -6,19 +6,67 @@ services:
     container_name: unibot-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: unibot
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-unibot}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER']
       interval: 10s
       timeout: 5s
       retries: 5
 
+  web:
+    build:
+      context: .
+      target: web
+    image: unibotz-web:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      PORT: ${WEB_PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-unibot}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-internal-secret}
+      WORKER_URL: http://worker:4000
+      WEB_URL: ${WEB_URL:-http://localhost:3000}
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+
+  worker:
+    build:
+      context: .
+      target: worker
+    image: unibotz-worker:latest
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      WORKER_PORT: ${WORKER_PORT:-4000}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-internal-secret}
+      WEB_INTERNAL_URL: http://web:3000
+      WA_STATE_DIR: /data/wa-state
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - '${WORKER_PORT:-4000}:4000'
+    volumes:
+      - worker-state:/data/wa-state
+
 volumes:
   postgres-data:
+    driver: local
+  worker-state:
     driver: local

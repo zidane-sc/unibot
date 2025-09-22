@@ -19,6 +19,7 @@ prisma/migrations
 # Env files
 .env
 .env.*
+!.env.docker.example
 !.env.example
 
 # Baileys state

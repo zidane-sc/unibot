@@ -1,0 +1,17 @@
+# Dependency directories
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+
+# Build output
+apps/web/.next
+apps/web/out
+apps/worker/dist
+apps/worker/state
+
+# Environment files
+.env
+.env.*
+
+# Misc
+.git
