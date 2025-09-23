@@ -649,7 +649,7 @@ async function handleAssignment(intent: NonNullIntent, context: ContextPayload):
     const schedule = assignment.schedule;
     const remaining = assignment.dueAt ? formatTimeRemaining(assignment.dueAt) : null;
     const scheduleInfo = schedule
-      ? `   🎓 Mata kuliah: ${schedule.title?.trim() || 'Tanpa nama'}\n}`
+      ? `   🎓 Mata kuliah: ${schedule.title?.trim() || 'Tanpa nama'}\n`
       : '   🎓 Mata kuliah: Belum terhubung ke jadwal';
     const notes = assignment.description?.trim();
 
