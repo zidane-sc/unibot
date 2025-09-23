@@ -132,7 +132,17 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
 
   if (!intent) {
     return {
-      text: `${mention} 😅 belum nangkep maksudnya. Coba tag aku bareng kata kunci, misal *@unibot help*.`,
+      text: [
+        `${mention} 🤷‍♂️ ${bold('Hmm, kurang jelas nih...')}`,
+        SECTION_DIVIDER,
+        'Sepertinya ada yang kurang dalam perintahmu.',
+        '',
+        `💡 ${bold('COBA LAGI:')}`,
+        list(['@unibot help – untuk melihat semua command', '@unibot [command] [parameter]']),
+        '',
+        `📝 ${bold('CONTOH YANG BENAR:')}`,
+        list(['@unibot anggota kelompok 1', '@unibot jadwal hari ini'])
+      ].join('\n'),
       mentions: [context.senderJid]
     };
   }
@@ -146,20 +156,27 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
     case 'help':
       return {
         text: [
-          `${mention} 💡 *Menu Bantuan*`,
+          `${mention} 🤖 ${bold('UniBot - Asisten Kelas Pintar')}`,
           SECTION_DIVIDER,
-          'Tag @unibot untuk manggil aku di grup.',
-          'Lalu pakai salah satu command berikut:',
-          SUBSECTION_DIVIDER,
+          'Hai! Tag *@unibot* + command berikut untuk mulai:',
+          '',
+          `📋 ${bold('MENU UTAMA')}`,
           list([
-            '*help* – lihat command & tips (contoh: @unibot help)',
-            '*jadwal [hari/matkul]* – cek jadwal kelas (contoh: jadwal hari ini)',
-            '*tugas [matkul]* – lihat tugas & deadline (contoh: tugas basis data)',
-            '*kelompok [matkul/nama]* – cek info grup (contoh: kelompok 3)',
-            '*anggota [kelompok]* – lihat daftar anggota (contoh: anggota kelompok 3)',
+            '`help` - Panduan lengkap',
+            '`jadwal [hari/matkul]` - Cek jadwal kelas',
+            '`tugas [matkul]` - Lihat tugas & deadline',
+            '`kelompok [matkul/nama]` - Info grup project',
+            '`anggota [kelompok]` - Daftar anggota'
           ]),
-          SECTION_DIVIDER,
-          `🌐 Web: ${WEB_URL}`,
+          '',
+          `💡 ${bold('CONTOH PENGGUNAAN')}`,
+          list([
+            '@unibot jadwal hari ini',
+            '@unibot tugas basis data',
+            '@unibot kelompok 3'
+          ]),
+          '',
+          `🌐 ${WEB_URL}`
         ].join('\n'),
         mentions: [context.senderJid]
       };
@@ -174,26 +191,33 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       };
     case 'schedule': {
       const detail = describeScheduleFilters(intent.filters);
-      const info = detail ? `lagi cari jadwal ${detail}` : 'butuh jadwal kelas?';
+      const info = detail ? `lagi cari jadwal ${detail}` : 'mau cek jadwal kelas?';
       return {
         text: [
-          `${mention} 🗓️ *${sentenceCase(info)}*`,
+          `${mention} 📅 ${bold(sentenceCase(info))}`,
           SECTION_DIVIDER,
-          'Tag aku + *jadwal [hari/matkul]* biar aku ambil data terbaru ya.',
-          'Contoh: *@unibot jadwal kamis* atau *@unibot jadwal Pancasila*.'
+          'Tag *@unibot* lalu tulis *jadwal [hari/matkul]* biar aku ambil jadwal paling baru.',
+          '',
+          `🧭 ${bold('CONTOH:')}`,
+          list(['@unibot jadwal hari ini', '@unibot jadwal kamis', '@unibot jadwal pancasila'])
         ].join('\n'),
         mentions: [context.senderJid]
       };
     }
     case 'assignment': {
       const detail = describeAssignmentFilters(intent.filters);
-      const info = detail ? `lagi nyari tugas untuk ${detail}` : 'lagi cek tugas yang belum kelar?';
+      const info = detail ? `lagi nyari tugas untuk ${detail}` : 'lagi cari tugas & deadline?';
       return {
         text: [
-          `${mention} 📚 *${sentenceCase(info)}*`,
+          `${mention} 📝 ${bold(sentenceCase(info))}`,
           SECTION_DIVIDER,
-          'Ketik *tugas [matkul]* atau tambah rentang waktu biar lebih spesifik.',
-          'Contoh: *@unibot tugas basis data* atau *@unibot tugas minggu ini*.'
+          'Mau cek tugas yang mana nih? 🤔',
+          '',
+          `🎯 ${bold('CARA PAKAI:')}`,
+          list(['@unibot tugas [nama matkul]', '@unibot tugas minggu ini', '@unibot tugas bulan ini']),
+          '',
+          `📌 ${bold('CONTOH:')}`,
+          list(['@unibot tugas basis data', '@unibot tugas pemrograman mobile'])
         ].join('\n'),
         mentions: [context.senderJid]
       };
@@ -203,10 +227,14 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       const info = detail ? `lagi cek ${detail}` : 'mau tau pembagian kelompok?';
       return {
         text: [
-          `${mention} 👥 *${sentenceCase(info)}*`,
+          `${mention} 👥 ${bold(sentenceCase(info))}`,
           SECTION_DIVIDER,
-          'Pakai format *kelompok [matkul/nama tim]* supaya aku bisa filter cepat.',
-          'Contoh: *@unibot kelompok proyek akhir* atau *@unibot kelompok 2*.'
+          'Aku bisa bantu list data kelompok project kamu.',
+          '',
+          `🏷️ ${bold('FORMAT PERINTAH:')}`,
+          list(['@unibot kelompok [nama/nomor]', '@unibot kelompok [mata kuliah]']),
+          '',
+          '🔍 Sebut nama tim biar hasilnya makin akurat ya!'
         ].join('\n'),
         mentions: [context.senderJid]
       };
@@ -216,11 +244,14 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       const info = detail ? `lagi mau lihat anggota ${detail}` : 'lagi cek siapa aja di kelompok?';
       return {
         text: [
-          `${mention} 🧑‍🤝‍🧑 *${sentenceCase(info)}*`,
+          `${mention} 🧑‍🤝‍🧑 ${bold(sentenceCase(info))}`,
           SECTION_DIVIDER,
-          '🔍 Pakai format *anggota [nama tim/nomor]* biar aku bisa list membernya ya.',
-          '✨ Contoh: *@unibot anggota kelompok 3* atau *@unibot anggota proyek akhir*.',
-          '_Tag aku lagi kalau mau update anggota lainnya!_'
+          'Filter kelompok yang mau kamu cek, nanti aku sebutin anggotanya.',
+          '',
+          `📂 ${bold('FORMAT:')}`,
+          list(['@unibot anggota kelompok 1', '@unibot anggota proyek akhir']),
+          '',
+          '✨ Tag aku lagi kalau mau cek kelompok lainnya.'
         ].join('\n'),
         mentions: [context.senderJid]
       };
@@ -248,7 +279,14 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       };
     default:
       return {
-        text: `${mention} 🤔 catet dulu ya, aku masih belajar buat perintah "${intent.matchedPhrase}". Coba cek *help* buat yang udah ready.`,
+        text: [
+          `${mention} 🤷‍♂️ ${bold('Perintahnya belum aku kenal nih...')}`,
+          SECTION_DIVIDER,
+          'Kayaknya aku belum paham formatnya.',
+          '',
+          `💡 ${bold('COBA GINI:')}`,
+          list(['@unibot help', '@unibot jadwal hari ini', '@unibot tugas basis data'])
+        ].join('\n'),
         mentions: [context.senderJid]
       };
   }

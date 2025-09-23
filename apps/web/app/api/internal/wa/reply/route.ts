@@ -50,11 +50,11 @@ type IntentReply = {
 
 type NonNullIntent = Exclude<IntentPayload, null>;
 
-const MAX_RESULTS = 5;
-const MEMBER_GROUP_LIMIT = 3;
+const MAX_RESULTS = 8;
+const MEMBER_GROUP_LIMIT = 6;
 const MAX_MEMBER_RESULTS = 5;
 const SECTION_DIVIDER = '━━━━━━━━━━━━━━━━━━━━';
-const SUBSECTION_DIVIDER = '┈┈┈┈┈┈┈┈┈┈';
+const SUBSECTION_DIVIDER = '┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈';
 
 const RELATIVE_DAY_LABELS: Record<string, string> = {
   today: 'hari ini',
@@ -212,7 +212,7 @@ function createMention(jid: string): string {
 }
 
 function formatTimeRange(start: string, end: string): string {
-  return `${start.slice(0, 5)}-${end.slice(0, 5)}`;
+  return `${start.slice(0, 5)} - ${end.slice(0, 5)}`;
 }
 
 function describeScheduleFilters(filters?: IntentFilters): string | null {
@@ -327,6 +327,31 @@ function formatDueLabel(dueAt: Date | string): string {
   return `${formatted} (${days} hari ${suffix})`;
 }
 
+function formatTimeRemaining(dueAt: Date | string): string {
+  const now = dayjs().tz(DEFAULT_TIMEZONE);
+  const due = dayjs(dueAt).tz(DEFAULT_TIMEZONE);
+  const diffMinutes = due.diff(now, 'minute');
+  const absMinutes = Math.abs(diffMinutes);
+
+  if (absMinutes < 1) {
+    return 'baru saja';
+  }
+
+  const suffix = diffMinutes >= 0 ? 'lagi' : 'lalu';
+
+  if (absMinutes < 60) {
+    return `${absMinutes} menit ${suffix}`;
+  }
+
+  if (absMinutes < 1440) {
+    const hours = Math.max(1, Math.round(absMinutes / 60));
+    return `${hours} jam ${suffix}`;
+  }
+
+  const days = Math.max(1, Math.round(absMinutes / 1440));
+  return `${days} hari ${suffix}`;
+}
+
 export async function POST(request: NextRequest) {
   if (!INTERNAL_SECRET || request.headers.get('x-internal-secret') !== INTERNAL_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -439,7 +464,8 @@ async function handleSchedule(intent: NonNullIntent, context: ContextPayload): P
       room: true,
       dayOfWeek: true,
       startTime: true,
-      endTime: true
+      endTime: true,
+      description: true
     }
   });
 
@@ -449,10 +475,13 @@ async function handleSchedule(intent: NonNullIntent, context: ContextPayload): P
 
     return {
       message: [
-        `${mention} 🙈 *Belum ada jadwal yang ketemu.*`,
-        detailLine,
+        `${mention} 📅 *JADWAL KELAS*`,
         SECTION_DIVIDER,
-        'Coba pakai kata kunci lain atau cek dashboard admin ya ✨'
+        detailLine,
+        'Belum ketemu jadwal yang cocok sama filter kamu.',
+        '',
+        '🤔 Coba sebut nama hari atau mata kuliah lain ya!',
+        '💬 Format: @unibot jadwal [hari/matkul]'
       ]
         .filter(Boolean)
         .join('\n'),
@@ -462,28 +491,48 @@ async function handleSchedule(intent: NonNullIntent, context: ContextPayload): P
 
   const visible = schedules.slice(0, MAX_RESULTS);
   const headerDetail = describeScheduleFilters(filters);
+  const headingSuffix = (() => {
+    if (filters.relativeDay && RELATIVE_DAY_LABELS[filters.relativeDay]) {
+      return ` ${RELATIVE_DAY_LABELS[filters.relativeDay].toUpperCase()}`;
+    }
 
-  const items = visible.map((schedule) => {
+    if (weekday) {
+      return ` HARI ${WEEKDAY_LABELS[weekday].label.toUpperCase()}`;
+    }
+
+    return ' TERBARU';
+  })();
+
+  const scheduleBlocks = visible.map((schedule) => {
     const title = schedule.title?.trim() || 'Tanpa judul';
     const label = WEEKDAY_LABELS[schedule.dayOfWeek].label;
     const time = formatTimeRange(schedule.startTime, schedule.endTime);
     const room = schedule.room?.trim();
-    const roomText = room ? ` • ${room}` : '';
-    return `*${title}*\n  🕒 ${label} • ${time}${roomText}`;
+    const notes = schedule.description?.trim();
+
+    const blockLines = [
+      `🎓 *${title}*`,
+      `   ⏰ ${label}, ${time}`,
+      room ? `   📍 ${room}` : null,
+      notes ? `   ${notes}` : null,
+      SUBSECTION_DIVIDER
+    ].filter(Boolean) as string[];
+
+    return blockLines.join('\n');
   });
 
   const lines: string[] = [
-    `${mention} 🗓️ *Jadwal Kelas*`,
-    headerDetail ? `_Filter: ${headerDetail}_` : null,
+    `${mention} 📅 *JADWAL KELAS${headingSuffix}*`,
     SECTION_DIVIDER,
-    formatList(items)
+    headerDetail ? `_Filter: ${headerDetail}_` : null,
+    scheduleBlocks.join('\n\n')
   ].filter(Boolean) as string[];
 
   if (schedules.length > visible.length) {
-    lines.push(`${SUBSECTION_DIVIDER}\n└ +${schedules.length - visible.length} jadwal lagi, sebut nama hari atau matkul biar lebih spesifik ✨`);
+    lines.push(`${SUBSECTION_DIVIDER}\n└ +${schedules.length - visible.length} jadwal lagi, sebut nama hari atau matkul biar makin pas ✨`);
   }
 
-  lines.push('_Tag aku lagi kalau mau jadwal lainnya 🙌_');
+  lines.push('\n💬 Tag @unibot jadwal [hari] untuk jadwal lainnya');
 
   return {
     message: lines.join('\n'),
@@ -572,10 +621,18 @@ async function handleAssignment(intent: NonNullIntent, context: ContextPayload):
 
     return {
       message: [
-        `${mention} ✅ *Belum ada tugas yang menunggu.*`,
-        filterLine ?? rangeLine,
+        `${mention} 📝 *TUGAS & DEADLINE*`,
         SECTION_DIVIDER,
-        'Santai dulu, nanti kalau ada tugas baru tag aku ya 📣'
+        filterLine ?? rangeLine,
+        detail || rangeLine
+          ? 'Belum nemu tugas aktif dengan filter itu. Mau coba format lain?' 
+          : 'Mau cek tugas yang mana nih? 🤔',
+        '',
+        `🎯 *CARA PAKAI:*`,
+        formatList(['@unibot tugas [nama matkul]', '@unibot tugas minggu ini', '@unibot tugas bulan ini']),
+        '',
+        `📌 *CONTOH:*`,
+        formatList(['@unibot tugas basis data', '@unibot tugas pemrograman mobile'])
       ]
         .filter(Boolean)
         .join('\n'),
@@ -590,28 +647,35 @@ async function handleAssignment(intent: NonNullIntent, context: ContextPayload):
     const title = assignment.title?.trim() || 'Tanpa judul';
     const dueLabel = assignment.dueAt ? formatDueLabel(assignment.dueAt) : 'Tanpa tenggat';
     const schedule = assignment.schedule;
+    const remaining = assignment.dueAt ? formatTimeRemaining(assignment.dueAt) : null;
     const scheduleInfo = schedule
-      ? `\n  📍 ${WEEKDAY_LABELS[schedule.dayOfWeek].label} • ${formatTimeRange(
-          schedule.startTime,
-          schedule.endTime
-        )}${schedule.title ? ` • ${schedule.title.trim()}` : ''}`
-      : '';
+      ? `   🎓 Mata kuliah: ${schedule.title?.trim() || 'Tanpa nama'}\n}`
+      : '   🎓 Mata kuliah: Belum terhubung ke jadwal';
+    const notes = assignment.description?.trim();
 
-    return `*${title}*\n  ⏰ ${dueLabel}${scheduleInfo}`;
+    const blockLines = [
+      `⚡ *${title}*`,
+      `   📅 Deadline: ${dueLabel}`,
+      remaining ? `   ⏳ Sisa waktu: ${remaining}` : null,
+      scheduleInfo,
+      `   📝 ${notes || 'Belum ada catatan'}`
+    ].filter(Boolean) as string[];
+
+    return blockLines.join('\n');
   });
 
   const lines: string[] = [
-    `${mention} 📚 *Daftar Tugas*`,
+    `${mention} 📚 *DAFTAR TUGAS AKTIF*`,
     headerDetail ? `_Filter: ${headerDetail}_` : null,
     SECTION_DIVIDER,
-    formatList(items)
+    items.join('\n\n')
   ].filter(Boolean) as string[];
 
   if (assignments.length > visible.length) {
-    lines.push(`${SUBSECTION_DIVIDER}\n└ +${assignments.length - visible.length} tugas lagi, sebut nama matkul biar lebih spesifik ✅`);
+    lines.push(`${SUBSECTION_DIVIDER}\n└ +${assignments.length - visible.length} tugas lagi, sebut nama matkul biar makin fokus ⚡`);
   }
 
-  lines.push('_Butuh update baru? Tinggal tag aku lagi 👍_');
+  lines.push('\n💬 Tag @unibot untuk update terbaru');
 
   return {
     message: lines.join('\n'),
@@ -690,10 +754,12 @@ async function handleGroup(intent: NonNullIntent, context: ContextPayload): Prom
     const detail = describeGroupFilters(filters);
     return {
       message: [
-        `${mention} 🤷‍♂️ *Belum ada kelompok yang cocok.*`,
-        detail ? `_Filter: ${detail}_` : null,
+        `${mention} 👥 *DATA KELOMPOK PROJECT*`,
         SECTION_DIVIDER,
-        'Coba pakai nama tim atau matkul lain ya 💡'
+        detail ? `_Filter: ${detail}_` : null,
+        'Belum ada data kelompok yang cocok sama filter itu.',
+        '',
+        '💡 Coba sebut nama tim, nomor kelompok, atau mata kuliahnya ya!'
       ]
         .filter(Boolean)
         .join('\n'),
@@ -706,29 +772,26 @@ async function handleGroup(intent: NonNullIntent, context: ContextPayload): Prom
 
   const items = visible.map((group) => {
     const memberCount = group.members.length;
-    const memberLabel = memberCount === 0 ? 'Belum ada anggota' : `${memberCount} anggota`;
+    const memberLabel = memberCount === 0 ? 'Belum ada anggota' : `${memberCount} anggota terdaftar`;
     const schedule = group.schedule;
-    const scheduleInfo = schedule
-      ? `\n  🕒 ${WEEKDAY_LABELS[schedule.dayOfWeek].label} • ${formatTimeRange(schedule.startTime, schedule.endTime)}${
-          schedule.title ? ` • ${schedule.title.trim()}` : ''
-        }`
-      : '\n  🔌 Belum terhubung ke jadwal';
+    const subject = schedule?.title?.trim();
+    const heading = subject ? `${group.name} - ${subject}` : group.name;
 
-    return `*${group.name}*\n  👥 ${memberLabel}${scheduleInfo}`;
+    return [`🏆 *${heading}*`, `   👤 ${memberLabel}`].join('\n');
   });
 
   const lines: string[] = [
-    `${mention} 👥 *Data Kelompok*`,
+    `${mention} 👥 *DATA KELOMPOK PROJECT*`,
     headerDetail ? `_Filter: ${headerDetail}_` : null,
     SECTION_DIVIDER,
-    formatList(items)
+    items.join('\n\n')
   ].filter(Boolean) as string[];
 
   if (groups.length > visible.length) {
     lines.push(`${SUBSECTION_DIVIDER}\n└ +${groups.length - visible.length} kelompok lagi, sebut nama tim biar lebih fokus 💡`);
   }
 
-  lines.push('_Mau cek kelompok lain? Tinggal tag aku lagi 😄_');
+  lines.push('\n🔍 Tag @unibot kelompok [nama] untuk detail');
 
   return {
     message: lines.join('\n'),
@@ -810,10 +873,12 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
     const detail = describeGroupFilters(filters);
     return {
       message: [
-        `${mention} 🙈 *Belum ada anggota yang bisa ditampilkan.*`,
-        detail ? `_Filter: ${detail}_` : null,
+        `${mention} 🧑‍🤝‍🧑 *ANGGOTA KELOMPOK*`,
         SECTION_DIVIDER,
-        'Coba sebut nama tim atau kata kunci lain ya 🔍'
+        detail ? `_Filter: ${detail}_` : null,
+        'Belum ketemu anggota yang pas dengan filter itu.',
+        '',
+        '🔍 Sebut nama tim, nomor kelompok, atau nama anggotanya ya!'
       ]
         .filter(Boolean)
         .join('\n'),
@@ -826,12 +891,6 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
 
   const summaries = visible.map((group) => {
     const schedule = group.schedule;
-    const scheduleInfo = schedule
-      ? `\n  🕒 ${WEEKDAY_LABELS[schedule.dayOfWeek].label} • ${formatTimeRange(schedule.startTime, schedule.endTime)}${
-          schedule.title ? ` • ${schedule.title}` : ''
-        }`
-      : '\n  🔌 Belum terhubung ke jadwal';
-
     const memberEntries = group.members.slice(0, MAX_MEMBER_RESULTS).map((member) => {
       const name = member.name.trim();
       const phone = member.phone?.trim();
@@ -843,21 +902,28 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
       ? `${memberEntries.join(', ')}${extraMembers > 0 ? ` (+${extraMembers} lagi)` : ''}`
       : 'Belum ada anggota';
 
-    return `*${group.name}*${scheduleInfo}\n  👥 ${memberSummary}`;
+    const sectionTitle = group.name + (schedule?.title ? ` - ${schedule.title.trim()}` : '');
+    const icon = schedule?.title ? '📖' : '🏷️';
+    const lines = [
+      `${icon} *${sectionTitle}*`,
+      `   👥 ${memberSummary}`
+    ];
+
+    return lines.join('\n');
   });
 
   const lines: string[] = [
-    `${mention} 🧑‍🤝‍🧑 *Daftar Anggota Kelompok*`,
+    `${mention} 🧑‍🤝‍🧑 *ANGGOTA KELOMPOK*`,
     headerDetail ? `_Filter: ${headerDetail}_` : null,
     SECTION_DIVIDER,
-    formatList(summaries)
+    summaries.join('\n\n')
   ].filter(Boolean) as string[];
 
   if (groups.length > visible.length) {
     lines.push(`${SUBSECTION_DIVIDER}\n└ +${groups.length - visible.length} kelompok lagi, sebut nama tim biar lebih spesifik ✨`);
   }
 
-  lines.push('_Mau cek anggota lainnya? Tag aku lagi ya ✨_');
+  lines.push('\n✨ Tag @unibot untuk cek kelompok lainnya');
 
   return {
     message: lines.join('\n'),
