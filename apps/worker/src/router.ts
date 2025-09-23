@@ -7,6 +7,8 @@ const WEB_URL = process.env.WEB_URL || 'https://unibot.com';
 
 const bold: (text: string) => string = formatBold as (text: string) => string;
 const list: (items: string[]) => string = formatList as (items: string[]) => string;
+const SECTION_DIVIDER = '━━━━━━━━━━━━━━━━━━━━';
+const SUBSECTION_DIVIDER = '┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈';
 
 function sentenceCase(word: string): string {
   if (!word) {
@@ -145,17 +147,19 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       return {
         text: [
           `${mention} 💡 *Menu Bantuan*`,
-          '━━━━━━━━━━━━━━━━━━━━',
+          SECTION_DIVIDER,
+          'Tag @unibot untuk manggil aku di grup.',
+          'Lalu pakai salah satu command berikut:',
+          SUBSECTION_DIVIDER,
           list([
             '*help* – lihat command & tips (contoh: @unibot help)',
-            '*hi* – sapa bot biar tau kamu hadir 😄',
             '*jadwal [hari/matkul]* – cek jadwal kelas (contoh: jadwal hari ini)',
             '*tugas [matkul]* – lihat tugas & deadline (contoh: tugas basis data)',
             '*kelompok [matkul/nama]* – cek info grup (contoh: kelompok 3)',
-            '*anggota [kelompok]* – lihat daftar anggota (contoh: anggota kelompok 3)'
+            '*anggota [kelompok]* – lihat daftar anggota (contoh: anggota kelompok 3)',
           ]),
+          SECTION_DIVIDER,
           `🌐 Web: ${WEB_URL}`,
-          '_Tag aku kapan pun kalau butuh bantuan lagi!_'
         ].join('\n'),
         mentions: [context.senderJid]
       };
@@ -163,7 +167,7 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       return {
         text: [
           `${mention} 🔐 *Mau hubungkan kelas?*`,
-          '━━━━━━━━━━━━━━━━━━━━',
+          SECTION_DIVIDER,
           'Pastikan kamu admin grup, lalu ketik *@unibot register* biar Unibot nyambung ke kelasmu ya.'
         ].join('\n'),
         mentions: [context.senderJid]
@@ -174,7 +178,7 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       return {
         text: [
           `${mention} 🗓️ *${sentenceCase(info)}*`,
-          '━━━━━━━━━━━━━━━━━━━━',
+          SECTION_DIVIDER,
           'Tag aku + *jadwal [hari/matkul]* biar aku ambil data terbaru ya.',
           'Contoh: *@unibot jadwal kamis* atau *@unibot jadwal Pancasila*.'
         ].join('\n'),
@@ -187,7 +191,7 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       return {
         text: [
           `${mention} 📚 *${sentenceCase(info)}*`,
-          '━━━━━━━━━━━━━━━━━━━━',
+          SECTION_DIVIDER,
           'Ketik *tugas [matkul]* atau tambah rentang waktu biar lebih spesifik.',
           'Contoh: *@unibot tugas basis data* atau *@unibot tugas minggu ini*.'
         ].join('\n'),
@@ -200,7 +204,7 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       return {
         text: [
           `${mention} 👥 *${sentenceCase(info)}*`,
-          '━━━━━━━━━━━━━━━━━━━━',
+          SECTION_DIVIDER,
           'Pakai format *kelompok [matkul/nama tim]* supaya aku bisa filter cepat.',
           'Contoh: *@unibot kelompok proyek akhir* atau *@unibot kelompok 2*.'
         ].join('\n'),
@@ -212,9 +216,11 @@ function buildFallback(intent: DetectedIntent | null, context: RouteContext): Ro
       const info = detail ? `lagi mau lihat anggota ${detail}` : 'lagi cek siapa aja di kelompok?';
       return {
         text: [
-          `${mention} 🧑‍🤝‍🧑 ${info}`,
-          'Pakai format *anggota [nama tim/nomor]* biar aku list membernya.',
-          'Contoh: *@unibot anggota kelompok 3* atau *@unibot anggota proyek akhir*.'
+          `${mention} 🧑‍🤝‍🧑 *${sentenceCase(info)}*`,
+          SECTION_DIVIDER,
+          '🔍 Pakai format *anggota [nama tim/nomor]* biar aku bisa list membernya ya.',
+          '✨ Contoh: *@unibot anggota kelompok 3* atau *@unibot anggota proyek akhir*.',
+          '_Tag aku lagi kalau mau update anggota lainnya!_'
         ].join('\n'),
         mentions: [context.senderJid]
       };
