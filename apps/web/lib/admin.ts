@@ -26,6 +26,7 @@ export async function loadScheduleForAdmin(userId: string, scheduleId: string) {
       title: true,
       description: true,
       room: true,
+      hints: true,
       dayOfWeek: true,
       startTime: true,
       endTime: true
@@ -57,6 +58,7 @@ export async function loadAssignmentForAdmin(userId: string, assignmentId: strin
       classId: true,
       title: true,
       description: true,
+      hints: true,
       dueAt: true,
       scheduleId: true,
       schedule: {
@@ -94,6 +96,7 @@ export async function loadGroupForAdmin(userId: string, groupId: string) {
     select: {
       id: true,
       name: true,
+      hints: true,
       scheduleId: true,
       schedule: {
         select: {

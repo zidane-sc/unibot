@@ -10,6 +10,7 @@ type FormState = {
   description: string;
   dueAt: string;
   scheduleId: string;
+  hints: string;
 };
 
 type StatusState = { type: 'success' | 'error'; message: string } | null;
@@ -26,8 +27,31 @@ function createEmptyForm(overrides?: Partial<FormState>): FormState {
     description: '',
     dueAt: '',
     scheduleId: '',
+    hints: '',
     ...overrides
   };
+}
+
+function parseHintsInput(value: string): string[] {
+  if (!value.trim()) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const hints: string[] = [];
+
+  for (const segment of value.split(',')) {
+    const hint = segment.trim().toLowerCase();
+
+    if (!hint || seen.has(hint)) {
+      continue;
+    }
+
+    seen.add(hint);
+    hints.push(hint);
+  }
+
+  return hints;
 }
 
 export default function AssignmentManager({ classes }: { classes: AdminClass[] }) {
@@ -68,7 +92,8 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
       title: assignment.title ?? '',
       description: assignment.description ?? '',
       dueAt: toInputDateTime(assignment.dueAt),
-      scheduleId: assignment.schedule?.id ?? selectedClass?.schedules[0]?.id ?? ''
+      scheduleId: assignment.schedule?.id ?? selectedClass?.schedules[0]?.id ?? '',
+      hints: assignment.hints.join(', ')
     });
     setStatus(null);
   };
@@ -109,9 +134,11 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
       description?: string;
       dueAt?: string | null;
       scheduleId: string;
+      hints: string[];
     } = {
       title: trimmedTitle,
-      scheduleId: form.scheduleId
+      scheduleId: form.scheduleId,
+      hints: parseHintsInput(form.hints)
     };
 
     if (!payload.scheduleId) {
@@ -138,6 +165,10 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
       payload.dueAt = dueAtIso;
     } else {
       payload.dueAt = null;
+    }
+
+    if (!payload.description) {
+      delete payload.description;
     }
 
     try {
@@ -209,7 +240,8 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
         setForm(
           createEmptyForm({
             scheduleId: selectedClass?.schedules[0]?.id ?? '',
-            dueAt: form.dueAt
+            dueAt: form.dueAt,
+            hints: form.hints
           })
         );
       } else {
@@ -355,6 +387,11 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
                         {assignment.description && (
                           <p className="text-sm text-slate-300">{assignment.description}</p>
                         )}
+                        {assignment.hints.length > 0 && (
+                          <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">
+                            Kata kunci: {assignment.hints.join(', ')}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex gap-2 text-xs font-semibold">
@@ -463,6 +500,24 @@ export default function AssignmentManager({ classes }: { classes: AdminClass[] }
                   onChange={(event) => setForm((previous) => ({ ...previous, dueAt: event.target.value }))}
                   className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-60"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80" htmlFor="assignment-hints">
+                  Hint pencarian (opsional)
+                </label>
+                <input
+                  id="assignment-hints"
+                  type="text"
+                  disabled={!canManage || submitting}
+                  value={form.hints}
+                  onChange={(event) => setForm((previous) => ({ ...previous, hints: event.target.value }))}
+                  placeholder="Pisahkan dengan koma, contoh: uts, laporan, kelompok"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <p className="text-xs text-slate-400">
+                  Hint membantu mahasiswa menemukan tugas melalui kata kunci di WhatsApp. Maksimal 10 kata.
+                </p>
               </div>
 
               <div className="space-y-2">

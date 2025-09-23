@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
+import { hintsSchema } from './hints';
+
 const phoneRegex = /^\+?\d{9,15}$/;
 
 export const groupInputSchema = z.object({
   name: z.string().min(1, 'Nama grup wajib diisi').max(160, 'Nama grup terlalu panjang').trim(),
+  hints: hintsSchema.optional(),
   scheduleId: z.string({ required_error: 'Pilih jadwal mata kuliah' }).uuid('Jadwal tidak valid')
 });
 

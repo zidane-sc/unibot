@@ -5,6 +5,7 @@ import { getSession } from '../../../../../lib/session';
 import { hasActiveSession } from '../../../../../lib/auth';
 import { loadScheduleForAdmin } from '../../../../../lib/admin';
 import { scheduleInputSchema } from '../../../../../lib/validation/schedule';
+import { normalizeHints } from '../../../../../lib/hints';
 
 export async function PATCH(
   request: NextRequest,
@@ -49,6 +50,7 @@ export async function PATCH(
 
   const description = parsed.data.description?.trim();
   const room = parsed.data.room?.trim();
+  const hints = normalizeHints(parsed.data.hints);
 
   const updated = await prisma.schedule.update({
     where: { id: scheduleId },
@@ -56,6 +58,7 @@ export async function PATCH(
       title: parsed.data.title,
       description: description && description.length > 0 ? description : null,
       room: room && room.length > 0 ? room : null,
+      hints,
       dayOfWeek: parsed.data.dayOfWeek,
       startTime: parsed.data.startTime,
       endTime: parsed.data.endTime
@@ -66,6 +69,7 @@ export async function PATCH(
       title: true,
       description: true,
       room: true,
+      hints: true,
       dayOfWeek: true,
       startTime: true,
       endTime: true
@@ -112,6 +116,7 @@ function serializeSchedule(schedule: {
   title: string | null;
   description: string | null;
   room: string | null;
+  hints: string[];
   dayOfWeek: string;
   startTime: string;
   endTime: string;
@@ -122,6 +127,7 @@ function serializeSchedule(schedule: {
     title: schedule.title,
     description: schedule.description,
     room: schedule.room,
+    hints: schedule.hints,
     dayOfWeek: schedule.dayOfWeek,
     startTime: schedule.startTime,
     endTime: schedule.endTime

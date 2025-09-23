@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { WEEKDAYS } from '../weekdays';
+import { hintsSchema } from './hints';
 
 const timeSchema = z
   .string()
@@ -11,6 +12,7 @@ export const scheduleInputSchema = z
     title: z.string().min(1, 'Judul wajib diisi').max(120, 'Judul terlalu panjang').trim(),
     description: z.string().max(280, 'Deskripsi maksimal 280 karakter').optional(),
     room: z.string().max(64, 'Nama ruangan maksimal 64 karakter').optional(),
+    hints: hintsSchema.optional(),
     dayOfWeek: z.enum(WEEKDAYS),
     startTime: timeSchema,
     endTime: timeSchema

@@ -8,6 +8,7 @@ import { WEEKDAY_LABELS, WEEKDAY_TO_DAYJS_INDEX } from '../../../lib/weekdays';
 type GroupFormState = {
   name: string;
   scheduleId: string;
+  hints: string;
 };
 
 type MemberFormState = {
@@ -26,7 +27,8 @@ type MemberFormMeta = {
 function createEmptyGroupForm(scheduleId: string): GroupFormState {
   return {
     name: '',
-    scheduleId
+    scheduleId,
+    hints: ''
   };
 }
 
@@ -35,6 +37,28 @@ function createEmptyMemberForm(): MemberFormState {
     name: '',
     phone: ''
   };
+}
+
+function parseHintsInput(value: string): string[] {
+  if (!value.trim()) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const hints: string[] = [];
+
+  for (const segment of value.split(',')) {
+    const hint = segment.trim().toLowerCase();
+
+    if (!hint || seen.has(hint)) {
+      continue;
+    }
+
+    seen.add(hint);
+    hints.push(hint);
+  }
+
+  return hints;
 }
 
 export default function GroupManager({ classes }: { classes: AdminClass[] }) {
@@ -145,7 +169,7 @@ export default function GroupManager({ classes }: { classes: AdminClass[] }) {
   const handleEditGroup = (group: GroupRecord) => {
     setGroupMode('edit');
     setEditingGroupId(group.id);
-    setGroupForm({ name: group.name, scheduleId: group.scheduleId ?? '' });
+    setGroupForm({ name: group.name, scheduleId: group.scheduleId ?? '', hints: group.hints.join(', ') });
     setGroupStatus(null);
     setSelectedScheduleId(group.scheduleId ?? '');
   };
@@ -195,7 +219,8 @@ export default function GroupManager({ classes }: { classes: AdminClass[] }) {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             name: trimmedName,
-            scheduleId: groupForm.scheduleId
+            scheduleId: groupForm.scheduleId,
+            hints: parseHintsInput(groupForm.hints)
           })
         }
       );
@@ -551,6 +576,11 @@ export default function GroupManager({ classes }: { classes: AdminClass[] }) {
                         ) : (
                           <p className="text-xs text-amber-200">Grup belum terhubung ke jadwal.</p>
                         )}
+                        {group.hints.length > 0 && (
+                          <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">
+                            Kata kunci: {group.hints.join(', ')}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2 text-xs font-semibold">
                         <button
@@ -737,6 +767,20 @@ export default function GroupManager({ classes }: { classes: AdminClass[] }) {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="space-y-1 text-sm text-slate-200">
+              <span>Hint pencarian (opsional)</span>
+              <input
+                name="hints"
+                value={groupForm.hints}
+                onChange={handleGroupFormChange}
+                placeholder="Pisahkan dengan koma, contoh: debat, presentasi"
+                className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40"
+              />
+              <p className="text-xs text-slate-400">
+                Hint membantu anggota mencari grup lewat kata kunci di WhatsApp. Maksimal 10 kata.
+              </p>
             </label>
 
             {groupStatus && (

@@ -53,6 +53,8 @@ type NonNullIntent = Exclude<IntentPayload, null>;
 const MAX_RESULTS = 5;
 const MEMBER_GROUP_LIMIT = 3;
 const MAX_MEMBER_RESULTS = 5;
+const SECTION_DIVIDER = '━━━━━━━━━━━━━━━━━━━━';
+const SUBSECTION_DIVIDER = '┈┈┈┈┈┈┈┈┈┈';
 
 const RELATIVE_DAY_LABELS: Record<string, string> = {
   today: 'hari ini',
@@ -400,6 +402,7 @@ async function handleSchedule(intent: NonNullIntent, context: ContextPayload): P
   const filters = intent.filters ?? {};
   const weekday = resolveWeekdayFromFilters(filters);
   const queryTerm = filters.query?.trim();
+  const normalizedQueryTerm = queryTerm?.toLowerCase();
 
   const where: Prisma.ScheduleWhereInput = {
     classId: context.classId
@@ -410,11 +413,17 @@ async function handleSchedule(intent: NonNullIntent, context: ContextPayload): P
   }
 
   if (queryTerm) {
-    where.OR = [
+    const orConditions: Prisma.ScheduleWhereInput[] = [
       { title: { contains: queryTerm, mode: 'insensitive' } },
       { description: { contains: queryTerm, mode: 'insensitive' } },
       { room: { contains: queryTerm, mode: 'insensitive' } }
     ];
+
+    if (normalizedQueryTerm) {
+      orConditions.push({ hints: { has: normalizedQueryTerm } });
+    }
+
+    where.OR = orConditions;
   }
 
   const schedules = await prisma.schedule.findMany({
@@ -436,35 +445,45 @@ async function handleSchedule(intent: NonNullIntent, context: ContextPayload): P
 
   if (!schedules.length) {
     const detail = describeScheduleFilters(filters);
-    const hint = detail ? ` (${detail})` : '';
+    const detailLine = detail ? `_Filter: ${detail}_` : null;
+
     return {
-      message: `${mention} 🙈 belum nemu jadwal${hint}. Cobain kata kunci lain atau cek lagi di dashboard ya.`,
+      message: [
+        `${mention} 🙈 *Belum ada jadwal yang ketemu.*`,
+        detailLine,
+        SECTION_DIVIDER,
+        'Coba pakai kata kunci lain atau cek dashboard admin ya ✨'
+      ]
+        .filter(Boolean)
+        .join('\n'),
       mentions
     };
   }
 
   const visible = schedules.slice(0, MAX_RESULTS);
   const headerDetail = describeScheduleFilters(filters);
-  const header = headerDetail
-    ? `${mention} 🗓️ ini jadwal ${headerDetail}:`
-    : `${mention} 🗓️ ini jadwal yang ketemu:`;
 
   const items = visible.map((schedule) => {
     const title = schedule.title?.trim() || 'Tanpa judul';
-    const label = WEEKDAY_LABELS[schedule.dayOfWeek].short;
+    const label = WEEKDAY_LABELS[schedule.dayOfWeek].label;
     const time = formatTimeRange(schedule.startTime, schedule.endTime);
     const room = schedule.room?.trim();
-    const roomText = room ? ` · ${room}` : '';
-    return `${label} ${time} · ${title}${roomText}`;
+    const roomText = room ? ` • ${room}` : '';
+    return `*${title}*\n  🕒 ${label} • ${time}${roomText}`;
   });
 
-  const lines: string[] = [header, formatList(items)];
+  const lines: string[] = [
+    `${mention} 🗓️ *Jadwal Kelas*`,
+    headerDetail ? `_Filter: ${headerDetail}_` : null,
+    SECTION_DIVIDER,
+    formatList(items)
+  ].filter(Boolean) as string[];
 
   if (schedules.length > visible.length) {
-    lines.push(`(+${schedules.length - visible.length} jadwal lagi, sebut nama hari atau matkul biar lebih spesifik)`);
+    lines.push(`${SUBSECTION_DIVIDER}\n└ +${schedules.length - visible.length} jadwal lagi, sebut nama hari atau matkul biar lebih spesifik ✨`);
   }
 
-  lines.push('Kalau mau jadwal lain, tag aku lagi aja ya 🙌');
+  lines.push('_Tag aku lagi kalau mau jadwal lainnya 🙌_');
 
   return {
     message: lines.join('\n'),
@@ -485,6 +504,7 @@ async function handleAssignment(intent: NonNullIntent, context: ContextPayload):
 
   const filters = intent.filters ?? {};
   const searchTerm = (filters.subject ?? filters.query)?.trim();
+  const normalizedSearchTerm = searchTerm?.toLowerCase();
   const dateRange = getRelativeDateRange(filters.relativeDay);
   const weekday = resolveWeekdayFromFilters(filters);
 
@@ -493,11 +513,18 @@ async function handleAssignment(intent: NonNullIntent, context: ContextPayload):
   };
 
   if (searchTerm) {
-    where.OR = [
+    const orConditions: Prisma.AssignmentWhereInput[] = [
       { title: { contains: searchTerm, mode: 'insensitive' } },
       { description: { contains: searchTerm, mode: 'insensitive' } },
       { schedule: { is: { title: { contains: searchTerm, mode: 'insensitive' } } } }
     ];
+
+    if (normalizedSearchTerm) {
+      orConditions.push({ hints: { has: normalizedSearchTerm } });
+      orConditions.push({ schedule: { is: { hints: { has: normalizedSearchTerm } } } });
+    }
+
+    where.OR = orConditions;
   }
 
   if (dateRange) {
@@ -540,43 +567,51 @@ async function handleAssignment(intent: NonNullIntent, context: ContextPayload):
 
   if (!assignments.length) {
     const detail = describeAssignmentFilters(filters);
-    const rangeHint = dateRange ? ` untuk ${dateRange.label}` : '';
-    const info = detail ? ` (${detail})` : rangeHint;
+    const filterLine = detail ? `_Filter: ${detail}_` : null;
+    const rangeLine = !detail && dateRange ? `_Rentang: ${dateRange.label}_` : null;
+
     return {
-      message: `${mention} ✅ lagi aman, belum ada tugas${info || ''}. Kalau ada info baru tinggal kabarin aku lagi ya.`,
+      message: [
+        `${mention} ✅ *Belum ada tugas yang menunggu.*`,
+        filterLine ?? rangeLine,
+        SECTION_DIVIDER,
+        'Santai dulu, nanti kalau ada tugas baru tag aku ya 📣'
+      ]
+        .filter(Boolean)
+        .join('\n'),
       mentions
     };
   }
 
   const visible = assignments.slice(0, MAX_RESULTS);
   const headerDetail = describeAssignmentFilters(filters);
-  const header = headerDetail
-    ? `${mention} 📚 daftar tugas ${headerDetail}:`
-    : `${mention} 📚 ini tugas yang lagi jalan:`;
 
   const items = visible.map((assignment) => {
     const title = assignment.title?.trim() || 'Tanpa judul';
-    const dueLabel = assignment.dueAt ? formatDueLabel(assignment.dueAt) : 'deadline belum di-set';
+    const dueLabel = assignment.dueAt ? formatDueLabel(assignment.dueAt) : 'Tanpa tenggat';
     const schedule = assignment.schedule;
+    const scheduleInfo = schedule
+      ? `\n  📍 ${WEEKDAY_LABELS[schedule.dayOfWeek].label} • ${formatTimeRange(
+          schedule.startTime,
+          schedule.endTime
+        )}${schedule.title ? ` • ${schedule.title.trim()}` : ''}`
+      : '';
 
-    if (schedule) {
-      const label = WEEKDAY_LABELS[schedule.dayOfWeek].short;
-      const time = formatTimeRange(schedule.startTime, schedule.endTime);
-      const scheduleTitle = schedule.title?.trim();
-      const scheduleInfo = scheduleTitle ? `${scheduleTitle} (${label} ${time})` : `${label} ${time}`;
-      return `📌 ${title} · ${scheduleInfo} — ${dueLabel}`;
-    }
-
-    return `📌 ${title} — ${dueLabel}`;
+    return `*${title}*\n  ⏰ ${dueLabel}${scheduleInfo}`;
   });
 
-  const lines: string[] = [header, formatList(items)];
+  const lines: string[] = [
+    `${mention} 📚 *Daftar Tugas*`,
+    headerDetail ? `_Filter: ${headerDetail}_` : null,
+    SECTION_DIVIDER,
+    formatList(items)
+  ].filter(Boolean) as string[];
 
   if (assignments.length > visible.length) {
-    lines.push(`(+${assignments.length - visible.length} tugas lagi, sebut nama matkul buat nge-filter)`);
+    lines.push(`${SUBSECTION_DIVIDER}\n└ +${assignments.length - visible.length} tugas lagi, sebut nama matkul biar lebih spesifik ✅`);
   }
 
-  lines.push('Kalau butuh update baru, tinggal tag aku lagi 👍');
+  lines.push('_Butuh update baru? Tinggal tag aku lagi 👍_');
 
   return {
     message: lines.join('\n'),
@@ -598,6 +633,7 @@ async function handleGroup(intent: NonNullIntent, context: ContextPayload): Prom
   const filters = intent.filters ?? {};
   const weekday = resolveWeekdayFromFilters(filters);
   const searchTerm = (filters.group ?? filters.groupQuery ?? filters.subject ?? filters.query)?.trim();
+  const normalizedSearchTerm = searchTerm?.toLowerCase();
 
   const scheduleFilter: Prisma.ScheduleWhereInput = {
     classId: context.classId
@@ -614,14 +650,17 @@ async function handleGroup(intent: NonNullIntent, context: ContextPayload): Prom
   };
 
   if (searchTerm) {
-    where.AND = [
-      {
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { schedule: { is: { title: { contains: searchTerm, mode: 'insensitive' } } } }
-        ]
-      }
+    const orConditions: Prisma.GroupWhereInput[] = [
+      { name: { contains: searchTerm, mode: 'insensitive' } },
+      { schedule: { is: { title: { contains: searchTerm, mode: 'insensitive' } } } }
     ];
+
+    if (normalizedSearchTerm) {
+      orConditions.push({ hints: { has: normalizedSearchTerm } });
+      orConditions.push({ schedule: { is: { hints: { has: normalizedSearchTerm } } } });
+    }
+
+    where.AND = [{ OR: orConditions }];
   }
 
   const groups = await prisma.group.findMany({
@@ -649,42 +688,47 @@ async function handleGroup(intent: NonNullIntent, context: ContextPayload): Prom
 
   if (!groups.length) {
     const detail = describeGroupFilters(filters);
-    const hint = detail ? ` (${detail})` : '';
     return {
-      message: `${mention} 🤷‍♂️ belum ada data kelompok${hint}. Coba cek lagi di dashboard atau pakai nama lain ya.`,
+      message: [
+        `${mention} 🤷‍♂️ *Belum ada kelompok yang cocok.*`,
+        detail ? `_Filter: ${detail}_` : null,
+        SECTION_DIVIDER,
+        'Coba pakai nama tim atau matkul lain ya 💡'
+      ]
+        .filter(Boolean)
+        .join('\n'),
       mentions
     };
   }
 
   const visible = groups.slice(0, MAX_RESULTS);
   const headerDetail = describeGroupFilters(filters);
-  const header = headerDetail
-    ? `${mention} 👥 ini data kelompok ${headerDetail}:`
-    : `${mention} 👥 ini kelompok yang tercatat:`;
 
   const items = visible.map((group) => {
     const memberCount = group.members.length;
-    const memberLabel = memberCount === 0 ? 'belum ada anggota' : `${memberCount} anggota`;
+    const memberLabel = memberCount === 0 ? 'Belum ada anggota' : `${memberCount} anggota`;
     const schedule = group.schedule;
+    const scheduleInfo = schedule
+      ? `\n  🕒 ${WEEKDAY_LABELS[schedule.dayOfWeek].label} • ${formatTimeRange(schedule.startTime, schedule.endTime)}${
+          schedule.title ? ` • ${schedule.title.trim()}` : ''
+        }`
+      : '\n  🔌 Belum terhubung ke jadwal';
 
-    if (schedule) {
-      const label = WEEKDAY_LABELS[schedule.dayOfWeek].short;
-      const time = formatTimeRange(schedule.startTime, schedule.endTime);
-      const title = schedule.title?.trim();
-      const scheduleInfo = title ? `${label} ${time} · ${title}` : `${label} ${time}`;
-      return `👥 ${group.name} — ${memberLabel} · ${scheduleInfo}`;
-    }
-
-    return `👥 ${group.name} — ${memberLabel}`;
+    return `*${group.name}*\n  👥 ${memberLabel}${scheduleInfo}`;
   });
 
-  const lines: string[] = [header, formatList(items)];
+  const lines: string[] = [
+    `${mention} 👥 *Data Kelompok*`,
+    headerDetail ? `_Filter: ${headerDetail}_` : null,
+    SECTION_DIVIDER,
+    formatList(items)
+  ].filter(Boolean) as string[];
 
   if (groups.length > visible.length) {
-    lines.push(`(+${groups.length - visible.length} kelompok lagi, sebut nama tim biar lebih fokus)`);
+    lines.push(`${SUBSECTION_DIVIDER}\n└ +${groups.length - visible.length} kelompok lagi, sebut nama tim biar lebih fokus 💡`);
   }
 
-  lines.push('Mau cek kelompok lain? Tinggal tag aku lagi 😄');
+  lines.push('_Mau cek kelompok lain? Tinggal tag aku lagi 😄_');
 
   return {
     message: lines.join('\n'),
@@ -706,6 +750,7 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
   const filters = intent.filters ?? {};
   const weekday = resolveWeekdayFromFilters(filters);
   const searchTerm = (filters.group ?? filters.groupQuery ?? filters.subject ?? filters.query)?.trim();
+  const normalizedSearchTerm = searchTerm?.toLowerCase();
 
   const scheduleFilter: Prisma.ScheduleWhereInput = {
     classId: context.classId
@@ -722,15 +767,18 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
   };
 
   if (searchTerm) {
-    where.AND = [
-      {
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { schedule: { is: { title: { contains: searchTerm, mode: 'insensitive' } } } },
-          { members: { some: { name: { contains: searchTerm, mode: 'insensitive' } } } }
-        ]
-      }
+    const orConditions: Prisma.GroupWhereInput[] = [
+      { name: { contains: searchTerm, mode: 'insensitive' } },
+      { schedule: { is: { title: { contains: searchTerm, mode: 'insensitive' } } } },
+      { members: { some: { name: { contains: searchTerm, mode: 'insensitive' } } } }
     ];
+
+    if (normalizedSearchTerm) {
+      orConditions.push({ hints: { has: normalizedSearchTerm } });
+      orConditions.push({ schedule: { is: { hints: { has: normalizedSearchTerm } } } });
+    }
+
+    where.AND = [{ OR: orConditions }];
   }
 
   const groups = await prisma.group.findMany({
@@ -760,26 +808,29 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
 
   if (!groups.length) {
     const detail = describeGroupFilters(filters);
-    const hint = detail ? ` (${detail})` : '';
     return {
-      message: `${mention} 🙈 belum nemu anggota kelompok${hint}. Coba sebut nama tim atau nomor lain ya.`,
+      message: [
+        `${mention} 🙈 *Belum ada anggota yang bisa ditampilkan.*`,
+        detail ? `_Filter: ${detail}_` : null,
+        SECTION_DIVIDER,
+        'Coba sebut nama tim atau kata kunci lain ya 🔍'
+      ]
+        .filter(Boolean)
+        .join('\n'),
       mentions
     };
   }
 
   const visible = groups.slice(0, MEMBER_GROUP_LIMIT);
   const headerDetail = describeGroupFilters(filters);
-  const header = headerDetail
-    ? `${mention} 🧑‍🤝‍🧑 ini anggota ${headerDetail}:`
-    : `${mention} 🧑‍🤝‍🧑 ini daftar anggota kelompok:`;
 
   const summaries = visible.map((group) => {
     const schedule = group.schedule;
     const scheduleInfo = schedule
-      ? `${WEEKDAY_LABELS[schedule.dayOfWeek].short} ${formatTimeRange(schedule.startTime, schedule.endTime)}${
-          schedule.title ? ` · ${schedule.title}` : ''
+      ? `\n  🕒 ${WEEKDAY_LABELS[schedule.dayOfWeek].label} • ${formatTimeRange(schedule.startTime, schedule.endTime)}${
+          schedule.title ? ` • ${schedule.title}` : ''
         }`
-      : null;
+      : '\n  🔌 Belum terhubung ke jadwal';
 
     const memberEntries = group.members.slice(0, MAX_MEMBER_RESULTS).map((member) => {
       const name = member.name.trim();
@@ -790,19 +841,23 @@ async function handleGroupMembers(intent: NonNullIntent, context: ContextPayload
     const extraMembers = group.members.length - memberEntries.length;
     const memberSummary = memberEntries.length
       ? `${memberEntries.join(', ')}${extraMembers > 0 ? ` (+${extraMembers} lagi)` : ''}`
-      : 'belum ada anggota';
+      : 'Belum ada anggota';
 
-    const headerLine = scheduleInfo ? `👥 ${group.name} · ${scheduleInfo}` : `👥 ${group.name}`;
-    return `${headerLine}\n   Anggota: ${memberSummary}`;
+    return `*${group.name}*${scheduleInfo}\n  👥 ${memberSummary}`;
   });
 
-  const lines: string[] = [header, ...summaries];
+  const lines: string[] = [
+    `${mention} 🧑‍🤝‍🧑 *Daftar Anggota Kelompok*`,
+    headerDetail ? `_Filter: ${headerDetail}_` : null,
+    SECTION_DIVIDER,
+    formatList(summaries)
+  ].filter(Boolean) as string[];
 
   if (groups.length > visible.length) {
-    lines.push(`(+${groups.length - visible.length} kelompok lagi, sebut nama tim biar lebih spesifik)`);
+    lines.push(`${SUBSECTION_DIVIDER}\n└ +${groups.length - visible.length} kelompok lagi, sebut nama tim biar lebih spesifik ✨`);
   }
 
-  lines.push('Mau cek anggota lain? Tinggal tag aku lagi ya ✨');
+  lines.push('_Mau cek anggota lainnya? Tag aku lagi ya ✨_');
 
   return {
     message: lines.join('\n'),

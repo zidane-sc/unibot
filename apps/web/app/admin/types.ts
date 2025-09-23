@@ -6,6 +6,7 @@ export type ScheduleRecord = {
   title: string | null;
   description: string | null;
   room: string | null;
+  hints: string[];
   dayOfWeek: Weekday;
   startTime: string;
   endTime: string;
@@ -16,6 +17,7 @@ export type AssignmentRecord = {
   classId: string;
   title: string | null;
   description: string | null;
+  hints: string[];
   dueAt: string | null;
   schedule: {
     id: string;
@@ -38,6 +40,7 @@ export type GroupRecord = {
   name: string;
   classId: string;
   scheduleId: string | null;
+  hints: string[];
   schedule: {
     id: string;
     title: string | null;

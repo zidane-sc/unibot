@@ -5,6 +5,7 @@ import { getSession } from '../../../../../../lib/session';
 import { hasActiveSession } from '../../../../../../lib/auth';
 import { isClassAdmin } from '../../../../../../lib/admin';
 import { groupInputSchema } from '../../../../../../lib/validation/group';
+import { normalizeHints } from '../../../../../../lib/hints';
 import type { GroupRecord } from '../../../../../admin/types';
 import type { Weekday } from '../../../../../../lib/weekdays';
 
@@ -57,11 +58,13 @@ export async function POST(request: NextRequest, { params }: { params: { classId
   const created = await prisma.group.create({
     data: {
       name: parsed.data.name.trim(),
+      hints: normalizeHints(parsed.data.hints),
       scheduleId: parsed.data.scheduleId
     },
     select: {
       id: true,
       name: true,
+      hints: true,
       scheduleId: true,
       schedule: {
         select: {
@@ -90,6 +93,7 @@ function serializeGroup(
   group: {
     id: string;
     name: string;
+    hints: string[];
     scheduleId: string | null;
     schedule: {
       id: string;
@@ -115,6 +119,7 @@ function serializeGroup(
     name: group.name,
     classId,
     scheduleId: group.scheduleId,
+    hints: group.hints,
     schedule: schedule
       ? {
           id: schedule.id,

@@ -36,6 +36,7 @@ export async function GET(_request: NextRequest) {
           title: true;
           description: true;
           room: true;
+          hints: true;
           dayOfWeek: true;
           startTime: true;
           endTime: true;
@@ -44,6 +45,7 @@ export async function GET(_request: NextRequest) {
               id: true;
               name: true;
               scheduleId: true;
+              hints: true;
               members: {
                 select: {
                   id: true;
@@ -60,6 +62,7 @@ export async function GET(_request: NextRequest) {
           id: true;
           title: true;
           description: true;
+          hints: true;
           dueAt: true;
           scheduleId: true;
           schedule: {
@@ -96,6 +99,7 @@ export async function GET(_request: NextRequest) {
           title: true,
           description: true,
           room: true,
+          hints: true,
           dayOfWeek: true,
           startTime: true,
           endTime: true,
@@ -104,6 +108,7 @@ export async function GET(_request: NextRequest) {
               id: true,
               name: true,
               scheduleId: true,
+              hints: true,
               members: {
                 select: {
                   id: true,
@@ -120,6 +125,7 @@ export async function GET(_request: NextRequest) {
           id: true,
           title: true,
           description: true,
+          hints: true,
           dueAt: true,
           scheduleId: true,
           schedule: {
@@ -146,6 +152,7 @@ export async function GET(_request: NextRequest) {
         title: schedule.title,
         description: schedule.description,
         room: schedule.room,
+        hints: schedule.hints,
         dayOfWeek: schedule.dayOfWeek,
         startTime: schedule.startTime,
         endTime: schedule.endTime
@@ -158,6 +165,7 @@ export async function GET(_request: NextRequest) {
         name: group.name,
         classId: item.id,
         scheduleId: group.scheduleId,
+        hints: group.hints,
         schedule: group.scheduleId
           ? {
               id: schedule.id,
@@ -188,9 +196,10 @@ export async function GET(_request: NextRequest) {
           id: assignment.id,
           classId: item.id,
           title: assignment.title,
-          description: assignment.description,
-          dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
-          schedule: assignment.schedule
+        description: assignment.description,
+        hints: assignment.hints,
+        dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
+        schedule: assignment.schedule
             ? {
                 id: assignment.schedule.id,
                 title: assignment.schedule.title,

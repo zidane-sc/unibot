@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import { WEEKDAYS, WEEKDAY_LABELS, sortByWeekdayAndStartTime } from '../../../lib/weekdays';
@@ -9,6 +10,7 @@ type FormState = {
   title: string;
   description: string;
   room: string;
+  hints: string;
   dayOfWeek: (typeof WEEKDAYS)[number];
   startTime: string;
   endTime: string;
@@ -21,11 +23,34 @@ function createEmptyForm(overrides?: Partial<FormState>): FormState {
     title: '',
     description: '',
     room: '',
+    hints: '',
     dayOfWeek: WEEKDAYS[0],
     startTime: '07:00',
     endTime: '09:00',
     ...overrides
   };
+}
+
+function parseHintsInput(value: string): string[] {
+  if (!value.trim()) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const hints: string[] = [];
+
+  for (const segment of value.split(',')) {
+    const hint = segment.trim().toLowerCase();
+
+    if (!hint || seen.has(hint)) {
+      continue;
+    }
+
+    seen.add(hint);
+    hints.push(hint);
+  }
+
+  return hints;
 }
 
 export default function ScheduleManager({ classes }: { classes: AdminClass[] }) {
@@ -57,6 +82,7 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
   }, [selectedClass]);
 
   const canManage = Boolean(selectedClass);
+  const publicHref = selectedClass ? `/classes/${selectedClass.id}` : null;
 
   const handleSelectClass = (event: ChangeEvent<HTMLSelectElement>) => {
     setSelectedClassId(event.target.value);
@@ -73,6 +99,7 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
       title: schedule.title ?? '',
       description: schedule.description ?? '',
       room: schedule.room ?? '',
+      hints: schedule.hints.join(', '),
       dayOfWeek: schedule.dayOfWeek,
       startTime: schedule.startTime,
       endTime: schedule.endTime
@@ -107,6 +134,7 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
       title: form.title.trim(),
       description: form.description.trim(),
       room: form.room.trim(),
+      hints: parseHintsInput(form.hints),
       dayOfWeek: form.dayOfWeek,
       startTime: form.startTime,
       endTime: form.endTime
@@ -118,6 +146,10 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
 
     if (!payload.room) {
       delete payload.room;
+    }
+
+    if (Array.isArray(payload.hints) && (payload.hints as string[]).length === 0) {
+      payload.hints = [];
     }
 
     try {
@@ -188,7 +220,8 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
           createEmptyForm({
             dayOfWeek: form.dayOfWeek,
             startTime: form.startTime,
-            endTime: form.endTime
+            endTime: form.endTime,
+            hints: form.hints
           })
         );
       } else {
@@ -270,17 +303,29 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
           <p className="text-sm text-slate-300">Ganti kelas untuk melihat jadwal yang terhubung.</p>
         </div>
         {classState.length > 0 ? (
-          <select
-            value={selectedClassId}
-            onChange={handleSelectClass}
-            className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 md:w-64"
-          >
-            {classState.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name ?? 'Kelas tanpa nama'}
-              </option>
-            ))}
-          </select>
+          <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
+            <select
+              value={selectedClassId}
+              onChange={handleSelectClass}
+              className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 md:w-64"
+            >
+              {classState.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name ?? 'Kelas tanpa nama'}
+                </option>
+              ))}
+            </select>
+            {publicHref ? (
+              <Link
+                href={publicHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-emerald-200 transition hover:border-emerald-300 hover:text-emerald-100 md:self-end"
+              >
+                Lihat halaman publik ↗
+              </Link>
+            ) : null}
+          </div>
         ) : (
           <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-400">
             Belum ada kelas terhubung.
@@ -346,6 +391,11 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
                               </div>
                               {schedule.description && (
                                 <p className="text-sm text-slate-300">{schedule.description}</p>
+                              )}
+                              {schedule.hints.length > 0 && (
+                                <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">
+                                  Kata kunci: {schedule.hints.join(', ')}
+                                </p>
                               )}
                             </div>
 
@@ -489,6 +539,24 @@ export default function ScheduleManager({ classes }: { classes: AdminClass[] }) 
                     className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80" htmlFor="schedule-hints">
+                  Hint pencarian (opsional)
+                </label>
+                <input
+                  id="schedule-hints"
+                  type="text"
+                  disabled={!canManage || submitting}
+                  value={form.hints}
+                  onChange={(event) => setForm((previous) => ({ ...previous, hints: event.target.value }))}
+                  placeholder="Pisahkan dengan koma, contoh: uts, materi, online"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <p className="text-xs text-slate-400">
+                  Hint membantu mahasiswa mencari jadwal lewat kata kunci di WhatsApp. Maksimal 10 kata.
+                </p>
               </div>
 
               <div className="space-y-2">

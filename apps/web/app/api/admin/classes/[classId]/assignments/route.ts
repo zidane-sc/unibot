@@ -5,6 +5,7 @@ import { getSession } from '../../../../../../lib/session';
 import { hasActiveSession } from '../../../../../../lib/auth';
 import { isClassAdmin } from '../../../../../../lib/admin';
 import { assignmentInputSchema } from '../../../../../../lib/validation/assignment';
+import { normalizeHints } from '../../../../../../lib/hints';
 import type { AssignmentRecord } from '../../../../../admin/types';
 import type { Weekday } from '../../../../../../lib/weekdays';
 
@@ -37,6 +38,7 @@ export async function GET(
       classId: true,
       title: true,
       description: true,
+      hints: true,
       dueAt: true,
       scheduleId: true,
       schedule: {
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest, { params }: { params: { classId
   const description = parsed.data.description?.trim();
   const dueAtInput = parsed.data.dueAt;
   const dueAt = typeof dueAtInput === 'string' ? new Date(dueAtInput) : null;
+  const hints = normalizeHints(parsed.data.hints);
 
   if (dueAt && Number.isNaN(dueAt.getTime())) {
     return NextResponse.json({ error: 'Tanggal tenggat tidak valid' }, { status: 400 });
@@ -116,6 +119,7 @@ export async function POST(request: NextRequest, { params }: { params: { classId
       title: parsed.data.title,
       description: description && description.length > 0 ? description : null,
       dueAt,
+      hints,
       scheduleId: parsed.data.scheduleId
     },
     select: {
@@ -123,6 +127,7 @@ export async function POST(request: NextRequest, { params }: { params: { classId
       classId: true,
       title: true,
       description: true,
+      hints: true,
       dueAt: true,
       scheduleId: true,
       schedule: {
@@ -145,6 +150,7 @@ function serializeAssignment(assignment: {
   classId: string;
   title: string | null;
   description: string | null;
+  hints: string[];
   dueAt: Date | null;
   scheduleId: string | null;
   schedule: {
@@ -160,6 +166,7 @@ function serializeAssignment(assignment: {
     classId: assignment.classId,
     title: assignment.title,
     description: assignment.description,
+    hints: assignment.hints,
     dueAt: assignment.dueAt ? assignment.dueAt.toISOString() : null,
     schedule: assignment.schedule
       ? {

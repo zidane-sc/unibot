@@ -5,6 +5,7 @@ import { getSession } from '../../../../../lib/session';
 import { hasActiveSession } from '../../../../../lib/auth';
 import { groupInputSchema } from '../../../../../lib/validation/group';
 import { loadGroupForAdmin } from '../../../../../lib/admin';
+import { normalizeHints } from '../../../../../lib/hints';
 import type { GroupRecord } from '../../../../admin/types';
 import type { Weekday } from '../../../../../lib/weekdays';
 
@@ -62,11 +63,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { groupI
     where: { id: groupId },
     data: {
       name: parsed.data.name.trim(),
+      hints: normalizeHints(parsed.data.hints),
       scheduleId: parsed.data.scheduleId
     },
     select: {
       id: true,
       name: true,
+      hints: true,
       scheduleId: true,
       schedule: {
         select: {
@@ -126,6 +129,7 @@ function serializeGroup(
   group: {
     id: string;
     name: string;
+    hints: string[];
     scheduleId: string | null;
     schedule: {
       id: string;
@@ -151,6 +155,7 @@ function serializeGroup(
     name: group.name,
     classId,
     scheduleId: group.scheduleId,
+    hints: group.hints,
     schedule: schedule
       ? {
           id: schedule.id,
